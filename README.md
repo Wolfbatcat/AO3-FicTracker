@@ -38,10 +38,9 @@ New feature: When you give kudos to a work, AO3 FicTracker will automatically hi
 
 ### ⚙️ Changed Default Settings
 Different defaults matching my own preferences:
-- **My Notes Button**: Disabled by default (`displayMyNotesButton: false`)
-- **On-Page Sorting**: Disabled by default (`displayOnPageSorting: false`)
-- **Hide Default Subscribe Button**: New setting, enabled by default (`hideDefaultSubscribeBtn: true`)
-- **Mark as Read Button**: New setting, enabled by default (`enableMarkAsReadButton: true`)
+- **My Notes Button**: Disabled by default
+- **On-Page Sorting**: Disabled by default
+- **Hide Default Subscribe Button**: New setting, enabled by default
 
 ### 🐛 Bug Fixes
 - Fixed case-sensitive tag comparison bug that prevented removing tags from dropdown menus when AO3 normalized tag casing
