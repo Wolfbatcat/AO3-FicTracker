@@ -2,45 +2,47 @@
 
 A userscript that enhances your Archive of Our Own (AO3) reading experience by adding powerful tracking features. Track your favorite, finished, to-read, and disliked fanfics with sync across devices.
 
-## Features
+## ⚠️ BlackBatCat's Custom Version
 
-- **Custom Status Tracking**: Mark fanfics as Finished, Favorite, To-Read, or Disliked
-- **Cross-Device Sync**: Sync your tracked fanfics across devices using Google Sheets integration
-- **Quick Status Toggle**: Add/remove status tags directly from work listings and search results
-- **Personal Notes**: Add and manage custom notes for each fanfic
-- **Visual Highlighting**: Customizable highlighting for tracked works
-- **Full UI Customization**: Customize colors, opacity, and display options
-- **Smart Bookmarking**: Automatically manages AO3 bookmarks based on your tracking preferences
+This is a customized fork of [infiniMotis's AO3 FicTracker](https://github.com/infiniMotis/AO3-FicTracker) with my personalized modifications. See [Changes from Original](#changes-from-original) below for details.
 
-## Installation
+> **Note:** This version does not auto-update from Greasy Fork. To use the official version with auto-updates, install from the [original repository](https://greasyfork.org/en/scripts/513435-ao3-fictracker).
 
-1. Install a userscript manager ([Tampermonkey](https://www.tampermonkey.net/) recommended)
-2. [Click here to install](https://update.greasyfork.org/scripts/513435/AO3%20FicTracker.user.js)
+## Changes from Original
 
-## Usage
+This custom version includes the following modifications from the [original AO3 FicTracker](https://github.com/infiniMotis/AO3-FicTracker):
 
-### Basic Features
-- Click the status button on a fic's page to track it
-- Use the dropdown menu in work listings to quickly change status
-- Access your tracked lists from the user menu dropdown
-- Add personal notes using the 📓 button in work listings
+### 📚 Renamed Status Categories
+Status categories have been renamed and reordered to better fit reading workflow:
+- **"Favorite"** → **"Reading"** 
+  - Label: "My Current Fanfics"
+  - Color: Rose pink (`#eb6f92`)
+- **New: "Subscribed"** status added
+  - Label: "My Subscribed Fics"  
+  - Color: Coral (`#ea9a97`)
+- **"Disliked Work"** → **"Dropped"**
+  - Hidden from view by default
+  - No longer shown in dropdown menu
+- **"Finished Reading"** 
+  - Moved to end of list
 
-### Cross-Device Sync (Optional)
-1. Go to AO3 Preferences page
-2. Find FicTracker settings at the bottom
-3. Enable sync and set up Google Sheets integration
-4. Use the same Sheet URL on other devices
+### 🎨 Visual Theme
+- Custom color scheme inspired by Rose Pine theme
+- Border radius changed from `8px` to `0.75em` to match [site skin](https://archiveofourown.org/works/69993411)
 
-## Customization
+### 📖 Chapter Tracking Feature
+New feature to help track reading progress in multi-chapter works:
+- **"Mark Current Chapter" button** appears on chapter pages
+- Automatically prepends `Last Read: Ch. X` to your custom note for that fic
+- Updates the chapter number each time you click it
 
-All features can be customized from the settings panel in your AO3 preferences:
-- Toggle features on/off
-- Customize highlighting colors and opacity
-- Configure sync settings
-- Import/export your data
+### ⚙️ Changed Default Settings
+Different defaults matching my own preferences:
+- **My Notes Button**: Disabled by default (`displayMyNotesButton: false`)
+- **On-Page Sorting**: Disabled by default (`displayOnPageSorting: false`)
+- **Hide Default Subscribe Button**: New setting, enabled by default (`hideDefaultSubscribeBtn: true`)
+- **Mark as Read Button**: New setting, enabled by default (`enableMarkAsReadButton: true`)
 
-## Support
-
-- 🐛 [Report Issues](https://github.com/infiniMotis/AO3-FicTracker/issues)
-- ☕ [Support Development](https://ko-fi.com/infinimotis)
-
+### 🐛 Bug Fixes
+- Fixed case-sensitive tag comparison bug that prevented removing tags from dropdown menus when AO3 normalized tag casing
+- Fixed issue where blurbs would not inherit original box shadow and border properties when Border Size set to 0
