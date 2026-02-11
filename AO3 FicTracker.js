@@ -1,7 +1,6 @@
 // ==UserScript==
-// @name         AO3 FicTracker
-// @author       infiniMotis
-// @version      1.6.6.3
+// @name         AO3 FicTracker - BlackBatCat's Version
+// @author       infiniMotis, BlackBatCat
 // @namespace    https://github.com/infiniMotis/AO3-FicTracker
 // @description  Track your favorite, finished, to-read and disliked fanfics on AO3 with sync across devices. Customizable tags and highlights make it easy to manage and spot your tracked works. Full UI customization on the preferences page.
 // @license      GNU GPLv3
@@ -13,8 +12,6 @@
 // @supportURL   https://github.com/infiniMotis/AO3-FicTracker/issues
 // @contributionURL https://ko-fi.com/infinimotis
 // @contributionAmount 1 USD
-// @downloadURL https://update.greasyfork.org/scripts/513435/AO3%20FicTracker.user.js
-// @updateURL https://update.greasyfork.org/scripts/513435/AO3%20FicTracker.meta.js
 // ==/UserScript==
 
 
@@ -46,35 +43,35 @@
         version: GM_info.script.version,
         statuses: [
             {
-                tag: 'Finished Reading',
-                dropdownLabel: 'My Finished Fanfics',
-                positiveLabel: '✔️ Mark as Finished',
-                negativeLabel: '🗑️ Remove from Finished',
-                selector: 'finished_reading_btn',
-                storageKey: 'FT_finished',
-                enabled: true,
-                collapse: false,
-                displayInDropdown: true,
-                highlightColor: "#000000",
-                borderSize: 0,
-                opacity: .6,
-                borderOpacity: 255,
-                hide: false
-            },
-            {
-                tag: 'Favorite',
-                dropdownLabel: 'My Favorite Fanfics',
-                positiveLabel: '❤️ Mark as Favorite',
-                negativeLabel: '💔 Remove from Favorites',
+                tag: 'Reading',
+                dropdownLabel: 'My Current Fanfics',
+                positiveLabel: '❤️ Mark as Reading',
+                negativeLabel: '💔 Remove from Reading',
                 selector: 'favorite_btn',
                 storageKey: 'FT_favorites',
                 enabled: true,
                 collapse: false,
                 displayInDropdown: true,
-                highlightColor: "#F95454",
+                highlightColor: "#eb6f92",
                 borderSize: 2,
                 opacity: 1,
-                borderOpacity: 255,
+                borderOpacity: 125,
+                hide: false
+            },
+            {
+                tag: 'Subscribed',
+                dropdownLabel: 'My Subscribed Fics',
+                positiveLabel: '🪄 Mark as Subscribed',
+                negativeLabel: '🧹 Remove from Subscribed',
+                selector: 'subscribed_btn',
+                storageKey: 'FT_subscribed',
+                enabled: true,
+                collapse: false,
+                displayInDropdown: true,
+                highlightColor: "#ea9a97",
+                borderSize: 2,
+                opacity: 1,
+                borderOpacity: 125,
                 hide: false
             },
             {
@@ -87,19 +84,35 @@
                 enabled: true,
                 collapse: false,
                 displayInDropdown: true,
-                highlightColor: "#3BA7C4",
+                highlightColor: "#9ccfd8",
                 borderSize: 2,
                 opacity: 1,
-                borderOpacity: 255,
+                borderOpacity: 125,
                 hide: false
             },
             {
-                tag: 'Disliked Work',
-                dropdownLabel: 'My Disliked Fanfics',
-                positiveLabel: '👎 Mark as Disliked',
-                negativeLabel: '🧹 Remove from Disliked',
+                tag: 'Dropped',
+                dropdownLabel: 'My Dropped Fanfics',
+                positiveLabel: '👎 Mark as Dropped',
+                negativeLabel: '🧹 Remove from Dropped',
                 selector: 'disliked_btn',
                 storageKey: 'FT_disliked',
+                enabled: true,
+                collapse: true,
+                displayInDropdown: false,
+                highlightColor: "#000000",
+                borderSize: 0,
+                opacity: .6,
+                borderOpacity: 255,
+                hide: true
+            },
+            {
+                tag: 'Finished Reading',
+                dropdownLabel: 'My Finished Fanfics',
+                positiveLabel: '✔️ Mark as Finished',
+                negativeLabel: '🗑️ Remove from Finished',
+                selector: 'finished_reading_btn',
+                storageKey: 'FT_finished',
                 enabled: true,
                 collapse: true,
                 displayInDropdown: true,
@@ -112,6 +125,7 @@
         ],
         loadingLabel: '⏳Loading...',
         hideDefaultToreadBtn: true,
+        hideDefaultSubscribeBtn: true,
         newBookmarksPrivate: true,
         newBookmarksRec: false,
         lastExportTimestamp: null,
@@ -124,12 +138,13 @@
         syncInterval: 60,
         syncEnabled: false,
         syncDBInitialized: false,
-        syncWidgetEnabled: true,
+        syncWidgetEnabled: false,
         syncWidgetOpacity: .5,
         exportStatusesConfig: true,
         collapseAndHideOnBookmarks: false,
-        displayMyNotesButton: true,
-        displayOnPageSorting: true
+        displayMyNotesButton: false,
+        displayOnPageSorting: false,
+        enableMarkAsReadButton: true
     };
 
     // Toggle debug info
@@ -145,11 +160,11 @@
         const userMenu = document.querySelector('ul.menu.dropdown-menu');
         const username = userMenu?.previousElementSibling?.getAttribute('href')?.split('/').pop() ?? '';
         if (!username) return false;
-    
+
         const url = window.location.pathname + window.location.search;
         return url.includes('/bookmarks') && url.includes(username);
     }
-    
+
 
     // Utility function for displaying modals
     function displayModal(modalTitle, htmlContent) {
@@ -206,24 +221,24 @@
                 const opacity = status.opacity;
                 const hasBorder = status.borderSize > 0;
                 const hide = status.hide;
-                
+
                 // Check if we should hide this status based on bookmarks page setting
                 const ownBookmarksPage = isOwnBookmarksPage();
-                const shouldHide = hide && ((ownBookmarksPage && settings.collapseAndHideOnBookmarks) || !ownBookmarksPage);            
+                const shouldHide = hide && ((ownBookmarksPage && settings.collapseAndHideOnBookmarks) || !ownBookmarksPage);
 
                 css += `
                     .${className} {
                         ${shouldHide ? 'display: none !important;' : ''}
-                        ${hasBorder ? `border: ${border} !important;` : 'border: none !important;'}
-                        border-radius: 8px !important;
+                        ${hasBorder ? `border: ${border} !important;` : ''}
+                        border-radius: 0.75em !important;
                         padding: 15px !important;
                         background-color: transparent !important;
-                        ${hasBorder ? `box-shadow: ${boxShadow} !important;` : 'box-shadow: none !important;'}
+                        ${hasBorder ? `box-shadow: ${boxShadow} !important;` : ''}
                         transition: box-shadow 0.3s ease, opacity 0.3s ease !important;
                         opacity: ${opacity};
                     }
                     .${className}:hover {
-                        ${hasBorder ? `box-shadow: ${boxShadowHover} !important;` : 'box-shadow: none !important;'}
+                        ${hasBorder ? `box-shadow: ${boxShadowHover} !important;` : ''}
                         opacity: 1;
                     }
                 `;
@@ -393,6 +408,23 @@
 
     }
 
+    // Utility functions for chapter detection
+    function isChapterPage() {
+        return /\/works\/\d+\/chapters\/\d+/.test(window.location.pathname);
+    }
+
+    function getCurrentChapterNumber() {
+        if (!isChapterPage()) return null;
+        
+        const chapterPreface = document.querySelector('.chapter.preface.group h3.title a');
+        if (!chapterPreface) return null;
+        
+        const chapterText = chapterPreface.textContent.trim();
+        const match = chapterText.match(/Chapter\s+(\d+)/i);
+        
+        return match ? parseInt(match[1], 10) : null;
+    }
+
     // Class for managing custom user notes
     class CustomUserNotesManager {
         constructor(storageManager, remoteSyncManager = null) {
@@ -419,7 +451,7 @@
         saveNote(workId, noteText, ficDetails) {
             const notes = this.getAllNotes();
             const date = new Date().toISOString();
-            
+
             if (noteText.trim() === "") {
                 delete notes[workId];
             } else {
@@ -435,7 +467,7 @@
             }
 
             this.storageManager.setItem("FT_userNotes", JSON.stringify(notes));
-            
+
             if (this.remoteSyncManager) {
                 this.remoteSyncManager.addPendingNoteUpdate(workId, noteText, date);
             }
@@ -448,7 +480,7 @@
             const notes = this.getAllNotes();
             delete notes[workId];
             this.storageManager.setItem("FT_userNotes", JSON.stringify(notes));
-            
+
             if (this.remoteSyncManager) {
                 this.remoteSyncManager.addPendingNoteUpdate(workId, "", null);
             }
@@ -607,9 +639,9 @@
                 const author = document.querySelector('a[rel="author"]')?.textContent;
                 const fandom = document.querySelector('dd.fandom.tags ul a.tag').textContent;
                 return {title, author, fandom}
-            } else {              
+            } else {
                 const fic = document.querySelector(`li#work_${workId}, li.work-${workId}`);
-                if (!fic) return;  
+                if (!fic) return;
 
                 const header = fic.querySelector('div.header.module');
                 const title = header.querySelector('a[href^="/works/"]').textContent;
@@ -618,6 +650,17 @@
                 const fandom = header.querySelector('h5.fandoms.heading > a.tag').textContent;
                 return {title, author, fandom}
             }
+        }
+
+
+        prependChapterMarker(existingText, chapterNum) {
+            // Remove any existing "Last Read: Ch. X" marker (including trailing newlines)
+            const cleanedText = existingText.replace(/^Last Read: Ch\.\s*\d+\s*\n*/m, '').trim();
+            
+            // Prepend new marker with double line break
+            const newMarker = `Last Read: Ch. ${chapterNum}`;
+            
+            return cleanedText ? `${newMarker}\n\n${cleanedText}` : newMarker;
         }
 
 
@@ -715,7 +758,7 @@
         }
     }
 
-    
+
     // Class for managing storage caching
     class StorageManager {
         // Store a value in local storage
@@ -942,7 +985,7 @@
                     if (this.isOnline) this.performSync();
                 }, this.syncInterval);
 
-                // If not enough time has passed, schedule a one-time timeout to sync later    
+                // If not enough time has passed, schedule a one-time timeout to sync later
             } else {
                 const timeUntilNextSync = this.syncInterval - timeSinceLastSync;
                 this.timeUntilNextSync = Math.ceil(timeUntilNextSync / 1000);
@@ -1022,7 +1065,7 @@
                 text: text || '',
                 date: date || null
             });
-            
+
             this.savePendingChanges(pendingChanges);
         }
 
@@ -1299,9 +1342,13 @@
             // Toggle the bookmark tag and log the action
             if (isTagPresent) {
                 DEBUG && console.log(`[FicTracker] Removing tag: ${tag}`);
-                bookmarkData.bookmarkTags.splice(bookmarkData.bookmarkTags.indexOf(tag), 1);
+                // Use case-insensitive search to find and remove the tag
+                const tagIndex = bookmarkData.bookmarkTags.findIndex(t => t.toLowerCase() === tag.toLowerCase());
+                if (tagIndex !== -1) {
+                    bookmarkData.bookmarkTags.splice(tagIndex, 1);
+                }
                 storageManager.removeIdFromCategory(storageKey, bookmarkData.workId);
-                
+
             if (remoteSyncManager) {
                 remoteSyncManager.addPendingStatusChange('remove', storageKey, bookmarkData.workId);
             }
@@ -1373,6 +1420,12 @@
                 document.querySelector('li.mark').style.display = "none";
             }
 
+            // Hide the default "subscribe" button if specified in settings
+            if (settings.hideDefaultSubscribeBtn) {
+                const subscribeBtn = document.querySelector('li.subscribe');
+                if (subscribeBtn) subscribeBtn.style.display = "none";
+            }
+
             this.addButtons();
         }
 
@@ -1380,13 +1433,13 @@
         addButtons() {
             const actionsMenu = document.querySelector('ul.work.navigation.actions');
             const bottomActionsMenu = document.querySelector('div#feedback > ul');
-            
+
             // Add user notes if enabled
             if (settings.displayUserNotes) {
                 const ficWrapperContainer = document.querySelector('#main div.wrapper');
                 const containerForNotes = ficWrapperContainer.parentElement;
 
-                ficWrapperContainer.insertAdjacentHTML('afterend', 
+                ficWrapperContainer.insertAdjacentHTML('afterend',
                     this.userNotesManager.generateNoteHtml(this.bookmarkData.workId, true)
                 );
                 this.userNotesManager.setupNoteHandlers(containerForNotes, true);
@@ -1418,6 +1471,17 @@
                 }
             });
 
+            // Add "Mark Current Chapter" button if enabled and on a chapter page
+            if (settings.enableMarkAsReadButton && isChapterPage()) {
+                const markChapterButtonHtml = '<li class="mark-as-read" id="mark-chapter-read"><a href="#">📖 Mark Current Chapter</a></li>';
+                
+                actionsMenu.insertAdjacentHTML('beforeend', markChapterButtonHtml);
+                
+                if (settings.displayBottomActionButtons) {
+                    bottomActionsMenu.insertAdjacentHTML('beforeend', markChapterButtonHtml);
+                }
+            }
+
             this.setupClickListeners();
         }
 
@@ -1443,12 +1507,23 @@
                     });
                 });
             });
+
+            // Setup listener for "Mark Current Chapter" button
+            if (settings.enableMarkAsReadButton && isChapterPage()) {
+                document.querySelectorAll('#mark-chapter-read').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        this.handleMarkChapterAsRead();
+                    });
+                });
+            }
         }
 
         // Handle the action for adding/removing/deleting a bookmark tag
         async handleActionButton(tag, positiveLabel, negativeLabel, selector, storageKey) {
             const authenticityToken = this.requestManager.getAuthenticityToken();
-            const isTagPresent = this.bookmarkData.bookmarkTags.includes(tag);
+            // Use case-insensitive comparison to check if tag is present
+            const isTagPresent = this.bookmarkData.bookmarkTags.some(t => t.toLowerCase() === tag.toLowerCase());
 
             // Consider button bottom menu duplication
             const buttons = document.querySelectorAll(`#${selector} a`);
@@ -1479,6 +1554,74 @@
                     btn.disabled = false;
                 });
             }
+        }
+
+
+        handleMarkChapterAsRead() {
+            const chapterNum = getCurrentChapterNumber();
+            if (!chapterNum) {
+                console.error('[FicTracker] Could not determine chapter number');
+                return;
+            }
+
+            const workId = this.bookmarkData.workId;
+            const existingNote = this.userNotesManager.getNote(workId);
+            const existingText = existingNote?.text || '';
+            
+            DEBUG && console.log('[FicTracker] Mark as Read - Before:', existingText);
+            
+            // Prepend chapter marker
+            const updatedText = this.userNotesManager.prependChapterMarker(existingText, chapterNum);
+            
+            DEBUG && console.log('[FicTracker] Mark as Read - After:', updatedText);
+            
+            // Save note
+            const ficDetails = this.userNotesManager.getFicDetails(workId, true);
+            this.userNotesManager.saveNote(workId, updatedText, ficDetails);
+            
+            DEBUG && console.log('[FicTracker] Mark as Read - Saved to storage');
+            
+            // Verify save
+            const savedNote = this.userNotesManager.getNote(workId);
+            DEBUG && console.log('[FicTracker] Mark as Read - Verified:', savedNote?.text);
+            
+            // Update or create note display if displayUserNotes is enabled
+            if (settings.displayUserNotes) {
+                const ficWrapperContainer = document.querySelector('#main div.wrapper');
+                const containerForNotes = ficWrapperContainer?.parentElement;
+                
+                if (containerForNotes) {
+                    const noteBlock = containerForNotes.querySelector(`.user-note-preview[data-work-id="${workId}"]`);
+                    
+                    if (noteBlock) {
+                        // Update existing note display
+                        this.userNotesManager.updateNoteDisplay(noteBlock, workId, true);
+                    } else {
+                        // Check if this is the first note being added (no handlers set up yet)
+                        const hasExistingNotes = containerForNotes.querySelector('.user-note-preview') !== null;
+                        
+                        // Create note display
+                        ficWrapperContainer.insertAdjacentHTML('afterend',
+                            this.userNotesManager.generateNoteHtml(workId, true)
+                        );
+                        
+                        // Only setup handlers if this is the first note (handlers not already set up)
+                        if (!hasExistingNotes) {
+                            this.userNotesManager.setupNoteHandlers(containerForNotes, true);
+                        }
+                    }
+                }
+            }
+            
+            // Visual feedback
+            const buttons = document.querySelectorAll('#mark-chapter-read a');
+            buttons.forEach((btn) => {
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Marked!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 1500);
+            });
         }
 
 
@@ -1545,7 +1688,7 @@
                 this.highlightWorkStatus(work, workId, true);
 
                 // Reload stored IDs to reflect any changes in storage (from fic card)
-                this.loadStoredIds(); 
+                this.loadStoredIds();
 
                 this.addQuickTagDropdown(work);
 
@@ -1623,7 +1766,7 @@
 
             const ownBookmarksPage = isOwnBookmarksPage();
             const collapseAllowed = !ownBookmarksPage || settings.collapseAndHideOnBookmarks;
-            
+
             // If at least one of the statuses of the work is set to be collapsable - let it be so
             // But check if we're on own bookmarks page and collapse is disabled there
             if (shouldBeCollapsable && collapseAllowed) {
@@ -1681,7 +1824,8 @@
                     // Get request to retrieve work bookmark data
                     const bookmarkData = await this.getRemoteBookmarkData(event.target);
                     const authenticityToken = this.requestManager.getAuthenticityToken();
-                    const tagExists = bookmarkData.bookmarkTags.includes(targetStatusTag);
+                    // Use case-insensitive comparison to check if tag exists
+                    const tagExists = bookmarkData.bookmarkTags.some(t => t.toLowerCase() === targetStatusTag.toLowerCase());
 
                     try {
                         // Send tag toggle request and modify cached bookmark data
@@ -1709,10 +1853,10 @@
             const workId = this.getWorkId(work);
             // div.header.module | ul.tags.commas | blockquote.userstuff.summary
             const container = work.querySelector('dl.stats');
-            
+
             // Add the note block
             //beforeend | afterend
-            container.insertAdjacentHTML('beforebegin', 
+            container.insertAdjacentHTML('beforebegin',
                 this.userNotesManager.generateNoteHtml(workId)
             );
         }
@@ -1720,7 +1864,7 @@
         // Setup note handlers for the works list
         prefillNotes() {
             if (!settings.displayUserNotes) return;
-            
+
             // div#main.filtered.region, div#main.works-search.region, div#main.series-show.region
             const container = document.querySelector('div#main.region');
             this.userNotesManager.setupNoteHandlers(container);
@@ -1861,7 +2005,7 @@
         constructor(settings) {
             this.settings = settings;
             this.init();
-            
+
             if (this.settings.syncEnabled) {
                 this.initRemoteSyncManager();
             }
@@ -1916,7 +2060,7 @@
                         <div style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-top: 10px;">
                             <p>Use arrows to change order. This will affect the order of buttons on work pages and in "Change Status" dropdown.</p>
                             <ul style="list-style: none; padding: 0;">
-                                <li v-for="(s, idx) in ficTrackerSettings.statuses" :key="s.storageKey || idx" 
+                                <li v-for="(s, idx) in ficTrackerSettings.statuses" :key="s.storageKey || idx"
                                     :style="{padding: '5px', borderRadius: '3px', background: selectedStatus === idx ? 'rgba(0, 0, 0, 0.3)' : 'transparent', display: 'flex', justifyContent: 'space-between', alignItems: 'center'}">
                                     <span @click="selectedStatus = idx" :style="{cursor: 'pointer'}" :title="'Click to edit ' + s.tag">{{ idx + 1 }}. {{ s.tag }}</span>
                                     <div style="display: flex; gap: 5px;">
@@ -2011,23 +2155,30 @@
                         <!-- Core Functionality -->
                         <li>
                             <input type="checkbox" id="toggle_displayUserNotes" v-model="ficTrackerSettings.displayUserNotes">
-                            <label for="toggle_displayUserNotes" 
+                            <label for="toggle_displayUserNotes"
                                 title="Shows the "Add note" button on each work card and your saved notes as collapsible sections">
                                 Display "Add Note" button and your notes in work cards
                             </label>
                         </li>
                         <li>
                             <input type="checkbox" id="toggle_displayMyNotesBtn" v-model="ficTrackerSettings.displayMyNotesButton">
-                            <label for="toggle_displayMyNotesBtn" 
+                            <label for="toggle_displayMyNotesBtn"
                                 title="Show or hide the 'My Notes' button in the navigation bar for quick access/search">
                                 Display "My Notes" button at the navigation bar
                             </label>
                         </li>
                         <li>
                             <input type="checkbox" id="toggle_displayOnPageSorting" v-model="ficTrackerSettings.displayOnPageSorting">
-                            <label for="toggle_displayOnPageSorting" 
+                            <label for="toggle_displayOnPageSorting"
                                 title="On-page sort lets you dynamically sort the works currently loaded on page. Note: it only sorts the works visible on this page, not across multiple pages">
                                 Display on-page sort conrols
+                            </label>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="toggle_enableMarkAsReadButton" v-model="ficTrackerSettings.enableMarkAsReadButton">
+                            <label for="toggle_enableMarkAsReadButton"
+                                title="Shows a 'Mark Current Chapter' button on chapter pages that prepends 'Last Read: Ch. X' to your custom notes">
+                                Display "Mark Current Chapter" button
                             </label>
                         </li>
                         <li>
@@ -2036,7 +2187,7 @@
                                 Auto-expand your notes in work cards
                             </label>
                         </li>
-                        
+
                         <!-- Bookmark Behavior -->
                         <li>
                             <input type="checkbox" id="toggle_private" v-model="ficTrackerSettings.newBookmarksPrivate">
@@ -2057,23 +2208,27 @@
                             <label for="toggle_collapseAndHideOnBookmarks" title="If enabled, works on your bookmarks page will collapse or be hidden based on your tag settings, just like on works browsing pages. If disabled, all bookmarked works will remain uncollapsed and visible.">
                                 Collapse and hide works on my bookmarks page
                             </label>
-                        </li>                        
+                        </li>
                         <!-- Interface Customization -->
                         <li>
                             <input type="checkbox" id="hide_default_toread" v-model="ficTrackerSettings.hideDefaultToreadBtn">
                             <label for="hide_default_toread" title="Hides AO3's default 'Mark For Later' button to reduce clutter">Hide default Mark For Later button</label>
                         </li>
                         <li>
+                            <input type="checkbox" id="hide_default_subscribe" v-model="ficTrackerSettings.hideDefaultSubscribeBtn">
+                            <label for="hide_default_subscribe" title="Hides AO3's default 'Subscribe' button to reduce clutter">Hide default Subscribe button</label>
+                        </li>
+                        <li>
                             <input type="checkbox" id="toggle_displayBottomActionButtons" v-model="ficTrackerSettings.displayBottomActionButtons">
                             <label for="toggle_displayBottomActionButtons" title="Adds duplicate tracking buttons at the bottom of long work lists for easier access">Duplicate action buttons at page bottom</label>
                         </li>
-                        
+
                         <!-- Advanced Options -->
                         <li>
                             <input type="checkbox" id="toggle_debug" v-model="ficTrackerSettings.debug">
                             <label for="toggle_debug" title="Enables console logging and debug information for troubleshooting">Debug mode (for troubleshooting)</label>
                         </li>
-                        
+
                         <!-- Reset Option -->
                         <li style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ccc;">
                             <input type="submit" id="reset_settings" value="Reset Settings to Default"
@@ -2093,21 +2248,21 @@
                     <ul>
                         <li>
                             <label>
-                                <input type="checkbox" v-model="ficTrackerSettings.syncEnabled"> 
+                                <input type="checkbox" v-model="ficTrackerSettings.syncEnabled">
                                 Enable automatic sync
                             </label>
                         </li>
                         <div v-show="ficTrackerSettings.syncEnabled">
                             <li>
                                 <label title="Show a floating sync status indicator with countdown timer and manual sync button">
-                                    <input type="checkbox" v-model="ficTrackerSettings.syncWidgetEnabled"> 
+                                    <input type="checkbox" v-model="ficTrackerSettings.syncWidgetEnabled">
                                     Show sync status widget
                                 </label>
                             </li>
                             <li v-if="ficTrackerSettings.syncWidgetEnabled">
                                 <label for="sync_widget_opacity">Sync widget opacity:</label>
-                                <input type="range" id="sync_widget_opacity" 
-                                    v-model="ficTrackerSettings.syncWidgetOpacity" 
+                                <input type="range" id="sync_widget_opacity"
+                                    v-model="ficTrackerSettings.syncWidgetOpacity"
                                     min="0.1" max="1" step="0.1"
                                     style="width: 200px; margin-right: 10px;">
                                 <strong>{{ ficTrackerSettings.syncWidgetOpacity }}</strong>
@@ -2118,8 +2273,8 @@
                             </li>
                             <li>
                                 <label for="sync_interval">Sync interval:</label>
-                                <input type="range" id="sync_interval" 
-                                    v-model="ficTrackerSettings.syncInterval" 
+                                <input type="range" id="sync_interval"
+                                    v-model="ficTrackerSettings.syncInterval"
                                     min="60" max="3600" step="60"
                                     style="width: 200px; margin-right: 10px;">
                                 <strong>{{ ficTrackerSettings.syncInterval }} seconds</strong>
@@ -2153,26 +2308,26 @@
                             </li>
 
                             <li>
-                                <input type="submit" 
-                                    @click="testSheetConnection" 
+                                <input type="submit"
+                                    @click="testSheetConnection"
                                     :value="loadingStates.testConnection ? 'Testing...' : 'Test Connection'"
                                     :disabled="loadingStates.testConnection || loadingStates.sync || loadingStates.initialize">
-                                
-                                <input v-if="ficTrackerSettings.syncDBInitialized" 
-                                    type="submit" 
-                                    @click="syncNow" 
+
+                                <input v-if="ficTrackerSettings.syncDBInitialized"
+                                    type="submit"
+                                    @click="syncNow"
                                     :value="loadingStates.sync ? 'Syncing...' : 'Sync Now'"
                                     :disabled="loadingStates.testConnection || loadingStates.sync || loadingStates.initialize">
-                                
-                                <input type="submit" 
-                                    v-if="ficTrackerSettings.syncDBInitialized" 
-                                    @click="resetSyncSettings" 
+
+                                <input type="submit"
+                                    v-if="ficTrackerSettings.syncDBInitialized"
+                                    @click="resetSyncSettings"
                                     value="Reset Sync Settings"
                                     :disabled="loadingStates.testConnection || loadingStates.sync || loadingStates.initialize">
 
                                 <li v-if="readyToInitDB && !ficTrackerSettings.syncDBInitialized">
-                                    <input type="submit" 
-                                        @click="initializeSheetStorage" 
+                                    <input type="submit"
+                                        @click="initializeSheetStorage"
                                         :value="loadingStates.initialize ? 'Initializing...' : 'Initialize Google Sheet Storage'"
                                         :disabled="loadingStates.testConnection || loadingStates.sync || loadingStates.initialize">
                                 </li>
@@ -2241,14 +2396,14 @@
                     initialize: false
                 },
 
-                // Computed 
+                // Computed
                 get currentSettings() {
                     return this.ficTrackerSettings.statuses[this.selectedStatus];
                 },
 
                 get canDeleteSelected() {
-                    // Prevent deleting built-ins 
-                    const builtInKeys = ['FT_finished', 'FT_favorites', 'FT_toread', 'FT_disliked'];
+                    // Prevent deleting built-ins
+                    const builtInKeys = ['FT_finished', 'FT_favorites', 'FT_subscribed', 'FT_toread', 'FT_disliked'];
                     return !builtInKeys.includes(this.ficTrackerSettings.statuses[this.selectedStatus].storageKey);
                 },
 
@@ -2312,7 +2467,7 @@
                         this.selectedStatus = statuses.indexOf(selectedObject);
                     });
                 },
-                
+
                 addStatus() {
                     const baseKey = 'FT_custom_' + Date.now();
                     const newStatus = {
@@ -2760,11 +2915,11 @@
                 try {
                     const currentNotes = JSON.parse(localStorage.getItem('FT_userNotes') || '{}');
                     const importedNotes = JSON.parse(importedData.FT_userNotes);
-                    
+
                     // Merge notes, keeping newer versions if there are conflicts
                     const mergedNotes = { ...currentNotes, ...importedNotes };
                     localStorage.setItem('FT_userNotes', JSON.stringify(mergedNotes));
-                    
+
                     const newNotesCount = Object.keys(importedNotes).length - Object.keys(currentNotes).length;
                     newEntriesMap['FT_userNotes'] = Math.max(0, newNotesCount);
                 } catch (err) {
@@ -2863,6 +3018,18 @@
                 // Check if the version matches the current version from Tampermonkey metadata
                 const currentVersion = GM_info.script.version;
                 if (!storedSettings.version || storedSettings.version !== currentVersion) {
+                    // Merge statuses intelligently - add new default statuses that don't exist
+                    if (storedSettings.statuses && settings.statuses) {
+                        const existingStorageKeys = new Set(storedSettings.statuses.map(s => s.storageKey));
+                        settings.statuses.forEach(defaultStatus => {
+                            if (!existingStorageKeys.has(defaultStatus.storageKey)) {
+                                // New status found in defaults, add it to stored settings
+                                storedSettings.statuses.push(defaultStatus);
+                                console.log(`[FicTracker] Added new status: ${defaultStatus.tag}`);
+                            }
+                        });
+                    }
+
                     // If versions don't match, merge and update the version
                     storedSettings = _.defaultsDeep(storedSettings, settings);
 
@@ -2954,7 +3121,7 @@
         setupMyNotesButton() {
             const topBar = document.querySelector('ul.primary.navigation.actions');
             if (!topBar) return;
-        
+
             const notesUI = `
                 <li class="dropdown" aria-haspopup="true">
                     <a href="#" class="dropdown-toggle" data-toggle="dropdown" id="ft_my_notes">My Notes</a>
