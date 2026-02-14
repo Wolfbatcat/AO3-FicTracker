@@ -3201,13 +3201,19 @@
             const username = userMenu?.previousElementSibling?.getAttribute('href')?.split('/').pop() ?? '';
 
             if (username) {
-                // Loop through each status and add corresponding dropdown options
+                // Remove previously added FicTracker dropdown links to prevent duplicates
+                const existingLinks = userMenu.querySelectorAll('a[data-ft-dropdown]');
+                existingLinks.forEach(link => link.parentElement.remove());
+
+                // Track which tags have been added to avoid duplicates
+                const addedTags = new Set();
                 this.settings.statuses.forEach((status) => {
-                    if (status.displayInDropdown) {
+                    if (status.displayInDropdown && !addedTags.has(status.tag)) {
                         userMenu.insertAdjacentHTML(
                             'beforeend',
-                            `<li><a href="https://archiveofourown.org/bookmarks?bookmark_search%5Bother_bookmark_tag_names%5D=${status.tag}&user_id=${username}">${status.dropdownLabel}</a></li>`
+                            `<li><a href="https://archiveofourown.org/bookmarks?bookmark_search%5Bother_bookmark_tag_names%5D=${status.tag}&user_id=${username}" data-ft-dropdown="1">${status.dropdownLabel}</a></li>`
                         );
+                        addedTags.add(status.tag);
                     }
                 });
                 DEBUG && console.log('[FicTracker] Successfully added dropdown options!');
