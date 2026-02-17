@@ -1,39 +1,41 @@
 // ==UserScript==
 // @name         AO3 FicTracker - BlackBatCat's Version
 // @author       infiniMotis, BlackBatCat
-// @namespace    https://github.com/infiniMotis/AO3-FicTracker
-// @description  Track your favorite, finished, to-read and disliked fanfics on AO3 with sync across devices. Customizable tags and highlights make it easy to manage and spot your tracked works. Full UI customization on the preferences page.
+// @version      1.6.6.3-bbc.1
+// @namespace    https://github.com/Wolfbatcat/AO3-FicTracker
+// @description  Customized fork with chapter tracking, kudos button hiding, and Rose Piné-inspired theme. Tracks favorite, finished, to-read and disliked fanfics on AO3 with sync across devices.
 // @license      GNU GPLv3
 // @icon         https://archiveofourown.org/favicon.ico
 // @match        *://archiveofourown.org/*
 // @grant        GM_xmlhttpRequest
 // @run-at       document-end
 // @require      https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js
-// @supportURL   https://github.com/infiniMotis/AO3-FicTracker/issues
-// @contributionURL https://ko-fi.com/infinimotis
-// @contributionAmount 1 USD
+// @supportURL   https://github.com/Wolfbatcat/AO3-FicTracker/issues
 // ==/UserScript==
 
 
 // Description:
-// FicTracker is designed for you to effectively manage their fanfics on AO3.
-// It allows you to mark fics as finished, favorite, to-read, or disliked, providing an easy way to organize their reading list.
-
+// Customized fork of infiniMotis's AO3 FicTracker. Original: https://greasyfork.org/en/scripts/513435-ao3-fictracker
+//
+// FicTracker helps you manage your fanfics on AO3. Mark fics with a status, add custom tags and notes,
+// and highlight tracked works on listing pages.
+//
 // Key Features:
-// **Custom "To-Read" Feature:** Users can filter and search through their to-read list, enhancing the experience beyond AO3's default functionality.
-// **Data Synchronization:** Information is linked to the user's AO3 account, enabling seamless syncing across devices.
-// **Google Sheets Storage Sync:** Syncs advanced tracking data such as highlighting and custom notes across multiple devices using a Google Sheets document.
-// **User-Friendly Access:** Users can conveniently access tracking options from a dropdown menu, making the process intuitive and straightforward.
-// **Optimized performance:** The script runs features only on relevant pages, ensuring quick and efficient performance.
-
+// **Status Tracking:** Mark fics as Reading, Subscribed, To-Read, Finished, or Dropped.
+// **Custom Tags & Notes:** Add personal tags and notes to any fic for easy organization.
+// **Chapter Tracking:** On chapter pages, use the "Mark Current Chapter" button to save your reading progress to your note automatically.
+// **Kudos Sync:** Giving kudos hides the kudos button across all your devices via Google Sheets sync.
+// **Data Synchronization:** Tracking data is linked to your AO3 account and syncs across devices.
+// **Google Sheets Storage Sync:** Syncs highlights, notes, and kudos status across multiple devices.
+// **Optimized Performance:** Features only run on relevant pages for quick and efficient performance.
+//
 // Usage Instructions:
-// 1. **Tracking Fics:** On the fics page, click the status button, on search result/fics listing pages - in the right bottom corner of each work there is a dropdown.
-// 2. **Settings Panel:** At the end of the user preferences page, you will find a settings panel to customize your tracking options.
-// 3. **Accessing Your Lists:** In the dropdown menu at the top right corner, you'll find links to your tracked lists for easy access.
+// 1. **Tracking Fics:** On a fic's page, click the status button. On listing pages, use the dropdown in the bottom right corner of each work.
+// 2. **Settings Panel:** Find the settings panel at the bottom of your AO3 preferences page.
+// 3. **Accessing Your Lists:** Use the dropdown menu in the top right corner of AO3 to access your tracked lists.
 // 4. **Multi-Device Sync (Optional):**
 //    - On your main device, initialize Google Sheets storage via the settings panel.
-//    - On other devices, use the same Sheet URL and initialize - data will sync automatically.
-//    - Highlighting and custom notes will sync across devices using this feature.
+//    - On other devices, enter the same Sheet URL and initialize — data will sync automatically.
 
 (function() {
     'use strict';
@@ -1487,9 +1489,9 @@
                 }
             });
 
-            // Add "Mark Current Chapter" button if enabled and on a chapter page
+            // Add "Mark Chapter" button if enabled and on a chapter page
             if (settings.enableMarkAsReadButton && isChapterPage()) {
-                const markChapterButtonHtml = '<li class="mark-as-read" id="mark-chapter-read"><a href="#">📖 Mark Current Chapter</a></li>';
+                const markChapterButtonHtml = '<li class="mark-as-read" id="mark-chapter-read"><a href="#">📖 Mark Chapter</a></li>';
                 
                 actionsMenu.insertAdjacentHTML('beforeend', markChapterButtonHtml);
                 
@@ -1528,7 +1530,7 @@
                 });
             });
 
-            // Setup listener for "Mark Current Chapter" button
+            // Setup listener for "Mark Chapter" button
             if (settings.enableMarkAsReadButton && isChapterPage()) {
                 document.querySelectorAll('#mark-chapter-read').forEach(button => {
                     button.addEventListener('click', (event) => {
@@ -2276,8 +2278,8 @@
                         <li>
                             <input type="checkbox" id="toggle_enableMarkAsReadButton" v-model="ficTrackerSettings.enableMarkAsReadButton">
                             <label for="toggle_enableMarkAsReadButton"
-                                title="Shows a 'Mark Current Chapter' button on chapter pages that prepends 'Last Read: Ch. X' to your custom notes">
-                                Display "Mark Current Chapter" button
+                                title="Shows a 'Mark Chapter' button on chapter pages that prepends 'Last Read: Ch. X' to your custom notes">
+                                Display "Mark Chapter" button
                             </label>
                         </li>
                         <li>
