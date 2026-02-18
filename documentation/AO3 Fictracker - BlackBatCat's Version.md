@@ -1,15 +1,15 @@
-# AO3 FicTracker
+# AO3 FicTracker -  BlackBatCat's Version
 
-This is a customized fork of [infiniMotis's AO3 FicTracker](https://github.com/infiniMotis/AO3-FicTracker) with my personalized modifications.
+This is a fork of [infiniMotis's AO3 FicTracker](https://greasyfork.org/en/scripts/513435-ao3-fictracker) with my personalized modifications.
 
-> **Note:** This version does not auto-update from Greasy Fork. To use the official version with auto-updates, install from the [original repository](https://greasyfork.org/en/scripts/513435-ao3-fictracker).
+> Note: This version will likely remain unlisted and will only be accessible from this link.
 
 ## Changes from Original
 
-This custom version includes the following modifications from the [original AO3 FicTracker](https://github.com/infiniMotis/AO3-FicTracker):
+This version includes the following modifications from the [original AO3 FicTracker](https://greasyfork.org/en/scripts/513435-ao3-fictracker):
 
 ### 📚 Renamed Status Categories
-Status categories have been renamed and reordered to better fit my workflow:
+Status categories have been renamed and reordered to match my workflow:
 - **"Favorite"** → **"Reading"** 
   - Label: "My Current Fanfics"
   - Color: Rose pink (`#eb6f92`)
@@ -35,6 +35,7 @@ New feature to help track reading progress in multi-chapter works:
 ### ⭐ Kudos Button Hiding (Cloud Sync)
 New feature: When you give kudos to a work, AO3 FicTracker will automatically hide the kudos button on all chapters and work pages for that fic.
 - This status is tracked and synced across all devices using the Google Sheets Cloud Storage integration.
+- Replaces my [No Re-Kudos script](https://greasyfork.org/en/scripts/551623-ao3-no-re-kudos) so feel free to disable it!
 
 ### ⚙️ Changed Default Settings
 Different defaults matching my own preferences:
@@ -46,6 +47,7 @@ Different defaults matching my own preferences:
 - Fixed case-sensitive tag comparison bug that prevented removing tags from dropdown menus when AO3 normalized tag casing
 - Fixed issue where blurbs would not inherit original box shadow and border properties when Border Size set to 0
 
+---
+## 🙌 Credits
 
-
-
+My heartiest thanks to farin for the life-changing FicTracker script. [Send them a tip](https://ko-fi.com/infinimotis)!
