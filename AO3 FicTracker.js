@@ -3421,7 +3421,7 @@
             // this.settings.statuses = this.settings.statuses.filter(status => status.enabled !== false);
 
             this.initStyles();
-            this.addDropdownOptions();
+            this.setupReliableDropdownInjection();
             this.setupURLHandlers();
             this.setupCrossTabKudosSync();
 
@@ -3434,6 +3434,61 @@
                 this.userNotesManager = new CustomUserNotesManager(this.storageManager, this.remoteSyncManager);
                 this.setupMyNotesButton();
             }
+        }
+
+        setupReliableDropdownInjection() {
+            let attempts = 0;
+            const maxAttempts = 20;
+            let retryTimer = null;
+            let finished = false;
+
+            const stop = () => {
+                if (finished) return;
+                finished = true;
+
+                if (retryTimer) {
+                    clearInterval(retryTimer);
+                    retryTimer = null;
+                }
+
+                observer.disconnect();
+                window.removeEventListener('pageshow', tryInject);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+            };
+
+            const tryInject = () => {
+                if (finished) return;
+
+                attempts++;
+                const injected = this.addDropdownOptions();
+
+                if (injected || attempts >= maxAttempts) {
+                    stop();
+                }
+            };
+
+            const handleVisibilityChange = () => {
+                if (document.visibilityState === 'visible') {
+                    tryInject();
+                }
+            };
+
+            const observer = new MutationObserver(() => {
+                if (!finished && attempts < maxAttempts) {
+                    tryInject();
+                }
+            });
+
+            observer.observe(document.documentElement, {
+                childList: true,
+                subtree: true
+            });
+
+            retryTimer = setInterval(tryInject, 500);
+            window.addEventListener('pageshow', tryInject);
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+
+            tryInject();
         }
 
         // Method to merge settings / store the default ones
@@ -3531,7 +3586,16 @@
         // Add new dropdown options for each status to the user menu
         addDropdownOptions() {
             const userMenu = document.querySelector('ul.menu.dropdown-menu');
-            const username = userMenu?.previousElementSibling?.getAttribute('href')?.split('/').pop() ?? '';
+            if (!userMenu) {
+                DEBUG && console.warn('[FicTracker] User menu not found yet.');
+                return false;
+            }
+
+            const profileLink =
+                userMenu.previousElementSibling?.getAttribute('href') ||
+                document.querySelector('#header a[href^="/users/"]')?.getAttribute('href') ||
+                '';
+            const username = profileLink.split('/').filter(Boolean).pop() || '';
 
             if (username) {
                 // Remove previously added FicTracker dropdown links to prevent duplicates
@@ -3550,8 +3614,10 @@
                     }
                 });
                 DEBUG && console.log('[FicTracker] Successfully added dropdown options!');
+                return true;
             } else {
-                DEBUG && console.warn('[FicTracker] Cannot parse the username!');
+                DEBUG && console.warn('[FicTracker] Cannot parse the username yet.');
+                return false;
             }
         }
 
