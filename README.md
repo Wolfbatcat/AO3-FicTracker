@@ -36,6 +36,9 @@ New feature to help track reading progress in multi-chapter works:
 New feature: When you give kudos to a work, AO3 FicTracker will automatically hide the kudos button on all chapters and work pages for that fic.
 - This status is tracked and synced across all devices using the Google Sheets Cloud Storage integration.
 
+### 🔄 Cloud Sync Enhancements
+- Google Sheets sync now also includes status configuration (`FT_statusesConfig`), including custom tags and visual settings (highlight color, border size, and border opacity) across devices.
+
 ### ⚙️ Changed Default Settings
 Different defaults matching my own preferences:
 - **My Notes Button**: Disabled by default; can be re-enabled in Preferences
@@ -43,8 +46,7 @@ Different defaults matching my own preferences:
 - **Hide Default Subscribe Button**: New setting, enabled by default. Only hides subscribe button on work pages.
 
 ### 🐛 Bug Fixes
-- Fixed case-sensitive tag comparison bug that prevented removing tags from dropdown menus when AO3 normalized tag casing
-- Fixed issue where blurbs would not inherit original box shadow and border properties when Border Size set to 0
+- See [CHANGELOG](../CHANGELOG.md) for the bug fix list.
 
 
 
