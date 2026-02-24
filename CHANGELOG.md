@@ -20,6 +20,9 @@ All notable changes to this fork are documented here.
   - Matched initialize pull behavior with the same deletion-aware status-config replacement semantics
   - Reset Sync Settings now also clears stale sync state keys (`FT_pendingChanges`, `FT_lastSyncedStatusesConfig`)
   - Added debug trace for initialize pull showing how many statuses were applied from remote config
+  - Improved mobile reliability for AO3 top-menu dropdown labels by replacing one-shot injection with retry-based injection
+  - Added DOM-aware retry triggers (`MutationObserver`, `pageshow`, and `visibilitychange`) so dropdown links appear when menu markup loads late
+  - Hardened dropdown username detection with a fallback profile-link lookup and success/failure return flow for `addDropdownOptions`
 
 ## Versioning scheme
 - Format: `upstream.major.minor.patch.forkPatch`
