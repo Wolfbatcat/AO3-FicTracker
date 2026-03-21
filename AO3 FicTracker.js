@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AO3 FicTracker - BlackBatCat's Version
 // @author       infiniMotis, BlackBatCat
-// @version      1.6.6.4.2
+// @version      1.6.6.4.4
 // @namespace    https://github.com/Wolfbatcat/AO3-FicTracker
 // @description  Customized fork with chapter tracking, kudos button hiding, and Rose Piné-inspired theme. Tracks favorite, finished, to-read and disliked fanfics on AO3 with sync across devices.
 // @license      GNU GPLv3
@@ -62,7 +62,7 @@
             },
             {
                 tag: 'Subscribed',
-                dropdownLabel: 'My Subscribed Fics',
+                dropdownLabel: 'My Subscribed Fanfics',
                 positiveLabel: '🪄 Mark as Subscribed',
                 negativeLabel: '🧹 Remove from Subscribed',
                 selector: 'subscribed_btn',
@@ -3738,7 +3738,8 @@
                     /\/collections\/.+/,
                     /\/works\?commit=Sort/,
                     /\/works\?work_search/,
-                    /\/tags\/.*\/works/
+                    /\/tags\/.*\/works/,
+                    /\/users\/[^/]+(\/dashboard)?(\?.*)?$/
                 ],
                 () => {
                     const worksListHandler = new WorksListHandler();
