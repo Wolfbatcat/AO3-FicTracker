@@ -2,6 +2,14 @@
 
 All notable changes to this fork are documented here.
 
+## [1.6.6.4.6] - 2026-04-24
+- Fork changes:
+  - Added "Change Status" dropdown integrated into AO3's stats bar (`<dl class="stats">` / `<dd>` structure)
+  - Fixed dropdown clipping/z-index issues caused by CSS `transform` stacking context and bookmark `overflow: hidden`
+  - Added user-configurable `changeStatusLabel` setting (with settings panel UI) to customize the dropdown toggle text
+  - Added `FT_uiConfig` sync key for cross-device sync of UI preferences; fixed constructor ordering bug, incorrect `LAST_SYNCED` gating, and missing key in initialization payload
+
+
 ## [1.6.6.4.2] - 2026-02-25
 - Fork changes:
   - Fixed `FT_statusesConfig` changes (e.g. highlight color edits) not being pushed to Google Sheets sync

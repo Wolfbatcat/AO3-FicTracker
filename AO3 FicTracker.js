@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AO3 FicTracker - BlackBatCat's Version
 // @author       infiniMotis, BlackBatCat
-// @version      1.6.6.4.4
+// @version      1.6.6.4.6
 // @namespace    https://github.com/Wolfbatcat/AO3-FicTracker
 // @description  Customized fork with chapter tracking, kudos button hiding, and Rose Piné-inspired theme. Tracks favorite, finished, to-read and disliked fanfics on AO3 with sync across devices.
 // @license      GNU GPLv3
@@ -39,6 +39,12 @@
 
 (function() {
     'use strict';
+
+    // Prevent script from running multiple times
+    if (window.FicTrackerInitialized) {
+        return;
+    }
+    window.FicTrackerInitialized = true;
 
     // Default script settings
     let settings = {
@@ -147,7 +153,8 @@
         displayMyNotesButton: false,
         displayOnPageSorting: false,
         enableMarkAsReadButton: true,
-        kudosStorageKey: 'FT_kudosGiven'
+        kudosStorageKey: 'FT_kudosGiven',
+        changeStatusLabel: '🤍 Change Status ▼'
     };
 
     // Toggle debug info
@@ -158,7 +165,7 @@
         return settings.statuses.find(status => status.storageKey === storageKey);
     }
 
-    const RESERVED_SYNC_KEYS = new Set(['FT_userNotes', 'FT_statusesConfig', 'FT_kudosGiven']);
+    const RESERVED_SYNC_KEYS = new Set(['FT_userNotes', 'FT_statusesConfig', 'FT_uiConfig', 'FT_kudosGiven']);
 
     function toTitleCaseWords(text) {
         return text
@@ -314,7 +321,6 @@
                         ${hasBorder ? `border: ${border} !important;` : ''}
                         border-radius: 0.75em !important;
                         padding: 15px !important;
-                        background-color: transparent !important;
                         ${hasBorder ? `box-shadow: ${boxShadow} !important;` : ''}
                         transition: box-shadow 0.3s ease, opacity 0.3s ease !important;
                         opacity: ${opacity};
@@ -895,6 +901,8 @@
             this.storageManager = new StorageManager();
             this.STATUS_CONFIG_KEY = 'FT_statusesConfig';
             this.LAST_SYNCED_STATUS_CONFIG_KEY = 'FT_lastSyncedStatusesConfig';
+            this.UI_CONFIG_KEY = 'FT_uiConfig';
+            this.LAST_SYNCED_UI_CONFIG_KEY = 'FT_lastSyncedUiConfig';
             this.rebuildSyncedKeys();
             this.PENDING_CHANGES_KEY = 'FT_pendingChanges';
             this.LAST_SYNC_KEY = 'FT_lastSync';
@@ -920,8 +928,9 @@
         rebuildSyncedKeys() {
             // Sync all configured status storage keys dynamically
             this.syncedKeys = settings.statuses.map(s => s.storageKey);
-            // Sync custom status definitions and kudos state as well
+            // Sync custom status definitions, UI config, and kudos state as well
             this.syncedKeys.push(this.STATUS_CONFIG_KEY);
+            this.syncedKeys.push(this.UI_CONFIG_KEY);
             this.syncedKeys.push(settings.kudosStorageKey);
         }
 
@@ -967,6 +976,41 @@
             }
         }
 
+        buildUiConfigPayload() {
+            return JSON.stringify({
+                changeStatusLabel: settings.changeStatusLabel || '🤍 Change Status ▼'
+            });
+        }
+
+        applyUiConfig(configRaw) {
+            try {
+                if (!configRaw) return;
+                const parsed = JSON.parse(configRaw);
+                if (!parsed || typeof parsed !== 'object') return;
+
+                if (parsed.changeStatusLabel) {
+                    settings.changeStatusLabel = parsed.changeStatusLabel;
+                    const currentSettings = JSON.parse(localStorage.getItem('FT_settings') || '{}');
+                    currentSettings.changeStatusLabel = parsed.changeStatusLabel;
+                    localStorage.setItem('FT_settings', JSON.stringify(currentSettings));
+                    DEBUG && console.log('[FicTracker] Applied synced UI config:', parsed);
+                }
+            } catch (error) {
+                DEBUG && console.warn('[FicTracker] Failed to apply UI config:', error);
+            }
+        }
+
+        syncUiConfigIfNeeded() {
+            const localConfig = this.buildUiConfigPayload();
+            this.storageManager.setItem(this.UI_CONFIG_KEY, localConfig);
+
+            const lastSyncedConfig = this.storageManager.getItem(this.LAST_SYNCED_UI_CONFIG_KEY) || '';
+            if (localConfig !== lastSyncedConfig) {
+                this.addPendingStatusChange('set', this.UI_CONFIG_KEY, localConfig);
+                DEBUG && console.log('[FicTracker] Queued UI config sync update');
+            }
+        }
+
         // Initialize sync system
         init() {
             // Initialize pending changes storage if not present
@@ -979,6 +1023,10 @@
 
             if (!this.storageManager.getItem(this.STATUS_CONFIG_KEY)) {
                 this.storageManager.setItem(this.STATUS_CONFIG_KEY, JSON.stringify(settings.statuses || []));
+            }
+
+            if (!this.storageManager.getItem(this.UI_CONFIG_KEY)) {
+                this.storageManager.setItem(this.UI_CONFIG_KEY, this.buildUiConfigPayload());
             }
 
             DEBUG && console.log('[FicTracker] Pending changes storage initialized');
@@ -1290,6 +1338,7 @@
             }
 
             this.syncStatusesConfigIfNeeded();
+            this.syncUiConfigIfNeeded();
 
             // update widget appropriately
             this.isSyncing = true;
@@ -1336,6 +1385,11 @@
                         if (syncedConfig) {
                             this.storageManager.setItem(this.LAST_SYNCED_STATUS_CONFIG_KEY, syncedConfig);
                         }
+                    }
+
+                    const syncedUiConfig = this.storageManager.getItem(this.UI_CONFIG_KEY);
+                    if (syncedUiConfig) {
+                        this.storageManager.setItem(this.LAST_SYNCED_UI_CONFIG_KEY, syncedUiConfig);
                     }
 
                     this.timeUntilNextSync = this.syncInterval / 1000;
@@ -1411,6 +1465,21 @@
         // Update local storage with server data
         updateLocalStorage(serverData) {
             const safeServerData = serverData || {};
+
+            // Apply UI config (changeStatusLabel, etc.)
+            if (Object.prototype.hasOwnProperty.call(safeServerData, this.UI_CONFIG_KEY)) {
+                const uiConfigValue = safeServerData[this.UI_CONFIG_KEY] || '';
+                const lastSyncedUiConfig = this.storageManager.getItem(this.LAST_SYNCED_UI_CONFIG_KEY) || '';
+                const localUiConfig = this.storageManager.getItem(this.UI_CONFIG_KEY) || '';
+                const hasUnpushedUiChange = localUiConfig && localUiConfig !== lastSyncedUiConfig;
+
+                if (!hasUnpushedUiChange) {
+                    this.applyUiConfig(uiConfigValue);
+                    this.storageManager.setItem(this.UI_CONFIG_KEY, uiConfigValue);
+                } else {
+                    DEBUG && console.log('[FicTracker] Skipping server UI config overwrite — local config has unpushed changes');
+                }
+            }
 
             // Apply status configuration first so syncedKeys include remote custom keys
             let configApplied = false;
@@ -2107,11 +2176,11 @@
             if (dropdownItems.length === 0) return;
 
             work.querySelector('dl.stats').insertAdjacentHTML('beforeend', `
-                <header id="header" class="region" style="padding: 0; font-size: 1em !important; cursor: pointer; opacity: 1; word-spacing: normal !important; display: inline;">
-                <ul class="navigation actions">
-                    <li class="dropdown" aria-haspopup="true" style="position: relative !important;>
-                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" data-target="#">✨ Change Status ▼</a>
-                        <ul class="menu dropdown-menu" style="width: auto !important;">
+                <header id="header" class="region" style="display: inline-flex !important; top: -1px; align-items: center !important; flex-wrap: nowrap !important; width: auto !important; max-width: none !important; position: relative !important; margin: 0 !important; padding: 0 !important; background: transparent !important; border: 0 !important; box-shadow: none !important; color: inherit !important; font-size: 1em !important; cursor: pointer; opacity: 1; word-spacing: normal !important;">
+                <ul class="navigation actions" style="margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; list-style: none !important;">
+                    <li class="dropdown" aria-haspopup="true" style="position: relative !important; margin: 0 !important; padding: 0 !important;">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" data-target="#">${settings.changeStatusLabel || '🤍 Change Status ▼'}</a>
+                        <ul class="menu dropdown-menu" style="width: auto !important; position: absolute !important; z-index: 9999 !important;">
                             ${dropdownItems.join('')}
                         </ul>
                     </li>
@@ -2458,6 +2527,12 @@
                             </li>
                         </ul>
                     </details>
+                    <ul>
+                        <li>
+                            <label for="change_status_label">"Change Status" dropdown label:</label>
+                            <input type="text" id="change_status_label" v-model="ficTrackerSettings.changeStatusLabel" placeholder="🤍 Change Status ▼">
+                        </li>
+                    </ul>
                 </section>
                 <br>
                 <section>
@@ -3123,9 +3198,11 @@
                         }
 
                         // Gather current local storage data to be uploaded to Google Sheets
+                        const UI_CONFIG_KEY = 'FT_uiConfig';
                         const initData = {
                             FT_userNotes: JSON.stringify(JSON.parse(localStorage.getItem('FT_userNotes') || '{}')),
                             [STATUS_CONFIG_KEY]: localStorage.getItem(STATUS_CONFIG_KEY) || JSON.stringify(this.ficTrackerSettings.statuses || []),
+                            [UI_CONFIG_KEY]: localStorage.getItem(UI_CONFIG_KEY) || JSON.stringify({ changeStatusLabel: this.ficTrackerSettings.changeStatusLabel || '🤍 Change Status ▼' }),
                             [this.ficTrackerSettings.kudosStorageKey]: localStorage.getItem(this.ficTrackerSettings.kudosStorageKey) || ''
                         };
                         try {
@@ -3604,6 +3681,11 @@
                 li.FT_collapsable:hover h5.fandoms.heading,
                 li.FT_collapsable:hover .userstuff {
                     display: block;
+                }
+
+                /* ensure dropdown menu is not clipped */
+                .bookmarks-index .bookmark.index {
+                    overflow: visible !important;
                 }
 
         `);
