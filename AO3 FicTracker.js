@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AO3 FicTracker - BlackBatCat's Version
 // @author       infiniMotis, BlackBatCat
-// @version      1.6.6.4.6
+// @version      1.6.6.4.7
 // @namespace    https://github.com/Wolfbatcat/AO3-FicTracker
 // @description  Customized fork with chapter tracking, kudos button hiding, and Rose Piné-inspired theme. Tracks favorite, finished, to-read and disliked fanfics on AO3 with sync across devices.
 // @license      GNU GPLv3
@@ -2195,6 +2195,7 @@
             // Event delegation for optimization
             worksContainer.addEventListener('click', async (event) => {
                 if (event.target.matches('a.work_quicktag_btn')) {
+                    event.preventDefault();
                     const targetStatusTag = event.target.dataset.statusTag;
                     const workId = event.target.dataset.workId;
                     const storageKey = event.target.dataset.statusName;

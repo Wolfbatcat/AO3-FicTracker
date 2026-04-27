@@ -2,6 +2,10 @@
 
 All notable changes to this fork are documented here.
 
+## [1.6.6.4.7] - 2026-04-27
+- Fork changes:
+  - Fixed "Change Status" dropdown items scrolling page to top on click — added missing `event.preventDefault()` in `setupQuickTagListener`
+
 ## [1.6.6.4.6] - 2026-04-24
 - Fork changes:
   - Added "Change Status" dropdown integrated into AO3's stats bar (`<dl class="stats">` / `<dd>` structure)
