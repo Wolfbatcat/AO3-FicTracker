@@ -39,6 +39,11 @@ New feature: When you give kudos to a work, AO3 FicTracker will automatically hi
 - This status is tracked and synced across all devices using the Google Sheets Cloud Storage integration.
 - Replaces my [No Re-Kudos script](https://greasyfork.org/en/scripts/551623-ao3-no-re-kudos) so feel free to disable it!
 
+### 📚 Series Bookmark Support
+Change Status works on series, not just individual works:
+- Status buttons are injected directly into the series page nav
+- Series bookmarks automatically receive a `Series` bookmark tag so you can find them easily
+
 ### 🔄 Cloud Sync Enhancements
 - Google Sheets sync now also includes status configuration (`FT_statusesConfig`), including custom tags and visual settings (highlight color, border size, and border opacity) across devices.
 

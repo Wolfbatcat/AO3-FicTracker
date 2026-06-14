@@ -11,7 +11,7 @@ This custom version includes the following modifications from the [original AO3 
 > **Important🚨**: For status highlighting and collapse/hide behavior to work correctly, update statuses using FicTracker controls only (the **Change Status** menu and FicTracker work-page buttons). Changes made through AO3 **Edit Bookmark** are not tracked by FicTracker storage.
 
 ### 📚 Renamed Status Categories
-Status categories have been renamed and reordered to better fit my workflow:
+Status categories have been renamed and reordered to match my workflow:
 - **"Favorite"** → **"Reading"** 
   - Label: "My Current Fanfics"
   - Color: Rose pink (`#eb6f92`)
@@ -37,6 +37,12 @@ New feature to help track reading progress in multi-chapter works:
 ### ⭐ Kudos Button Hiding (Cloud Sync)
 New feature: When you give kudos to a work, AO3 FicTracker will automatically hide the kudos button on all chapters and work pages for that fic.
 - This status is tracked and synced across all devices using the Google Sheets Cloud Storage integration.
+- Replaces my [No Re-Kudos script](https://greasyfork.org/en/scripts/551623-ao3-no-re-kudos) so feel free to disable it!
+
+### 📚 Series Bookmark Support
+Change Status works on series, not just individual works:
+- Status buttons are injected directly into the series page nav
+- Series bookmarks automatically receive a `Series` bookmark tag so you can find them easily
 
 ### 🔄 Cloud Sync Enhancements
 - Google Sheets sync now also includes status configuration (`FT_statusesConfig`), including custom tags and visual settings (highlight color, border size, and border opacity) across devices.

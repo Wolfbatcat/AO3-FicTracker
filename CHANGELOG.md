@@ -2,6 +2,15 @@
 
 All notable changes to this fork are documented here.
 
+## [1.6.6.4.8] - 2026-05-12
+- Fork changes:
+  - Added full Change Status support for series — status buttons on series pages and bookmarks listing page; creates/updates/deletes series bookmarks via `/series/{id}/bookmarks`
+  - Series bookmarks automatically receive a `Series` bookmark tag on create/update; tag is stripped before the empty-bookmark check so auto-delete still fires correctly
+  - Fixed stale `Series` collection entry being re-submitted on every update
+  - Fixed `newBookmarksPrivate`/`newBookmarksRec` not being applied on series bookmark updates (was create-only)
+  - Fixed incorrect Change Status dropdown labels for series on bookmarks listing page — now resolves `series_{id}` entity ID from the blurb class
+  - Fixed stale localStorage for series statuses not being cleared when a series bookmark is deleted (series page now clears stale IDs on load when no bookmark exists)
+
 ## [1.6.6.4.7] - 2026-04-27
 - Fork changes:
   - Fixed "Change Status" dropdown items scrolling page to top on click — added missing `event.preventDefault()` in `setupQuickTagListener`

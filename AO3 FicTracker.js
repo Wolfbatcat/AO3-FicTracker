@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AO3 FicTracker - BlackBatCat's Version
 // @author       infiniMotis, BlackBatCat
-// @version      1.6.6.4.7
+// @version      1.6.6.4.8
 // @namespace    https://github.com/Wolfbatcat/AO3-FicTracker
 // @description  Customized fork with chapter tracking, kudos button hiding, and Rose Piné-inspired theme. Tracks favorite, finished, to-read and disliked fanfics on AO3 with sync across devices.
 // @license      GNU GPLv3
@@ -154,7 +154,7 @@
         displayOnPageSorting: false,
         enableMarkAsReadButton: true,
         kudosStorageKey: 'FT_kudosGiven',
-        changeStatusLabel: '🤍 Change Status ▼'
+        changeStatusLabel: '✿ Change Status ▼'
     };
 
     // Toggle debug info
@@ -492,6 +492,34 @@
             DEBUG && console.table(Array.from(formData.entries()));
 
             return formData;
+        }
+
+        // Create a bookmark for a series with given data
+        createSeriesBookmark(seriesId, authenticityToken, bookmarkData) {
+            const url = `${this.baseApiUrl}/series/${seriesId}/bookmarks`;
+            const headers = this.getRequestHeaders();
+            const formData = this.createFormData(authenticityToken, bookmarkData);
+
+            DEBUG && console.info('[FicTracker] Sending CREATE request for series bookmark:', {
+                url,
+                headers,
+                bookmarkData
+            });
+
+            return this.sendRequest(url, formData, headers)
+                .then(response => {
+                    if (response.ok) {
+                        const bookmarkId = response.url.split('/').pop();
+                        DEBUG && console.log('[FicTracker] Created series bookmark ID:', bookmarkId);
+                        return bookmarkId;
+                    } else {
+                        throw new Error("Failed to create series bookmark. Status: " + response.status);
+                    }
+                })
+                .catch(error => {
+                    DEBUG && console.error('[FicTracker] Error creating series bookmark:', error);
+                    throw error;
+                });
         }
 
     }
@@ -978,7 +1006,7 @@
 
         buildUiConfigPayload() {
             return JSON.stringify({
-                changeStatusLabel: settings.changeStatusLabel || '🤍 Change Status ▼'
+                changeStatusLabel: settings.changeStatusLabel || '✿ Change Status ▼'
             });
         }
 
@@ -1687,6 +1715,27 @@
 
             return bookmarkData
         }
+
+        // Gather series bookmark data from a series page document (or current document)
+        getSeriesBookmarkData(seriesId) {
+            const form = this.doc.querySelector('div#bookmark_form_placement form');
+            const action = form?.getAttribute('action') || '';
+            // action is /series/ID/bookmarks (no bookmark) or /bookmarks/ID (existing bookmark)
+            const hasExistingBookmark = action.startsWith('/bookmarks/');
+            const bookmarkId = hasExistingBookmark ? action.split('/')[2] : null;
+
+            return {
+                workId: `series_${seriesId}`,
+                bookmarkId,
+                hasExistingBookmark,
+                pseudId: this.getPseudId(),
+                bookmarkTags: this.getBookmarkTags(),
+                notes: this.getBookmarkNotes(),
+                collections: this.getBookmarkCollections(),
+                isPrivate: this.isBookmarkPrivate(),
+                isRec: this.isBookmarkRec()
+            };
+        }
     }
 
 
@@ -2031,6 +2080,9 @@
             // Listen for clicks on quick tag buttons
             this.setupQuickTagListener();
 
+            // Inject status buttons on series pages
+            this.addSeriesStatusButtons();
+
             // Display on page sorting controls if enabled
             if (settings.displayOnPageSorting) {
                 this.setupOnPageSorting();
@@ -2065,8 +2117,12 @@
                     return;
                 }
 
+                // Series bookmark blurbs store statuses under "series_ID"
+                const seriesMatch = work.className.match(/\bseries-(\d+)\b/);
+                const entityId = seriesMatch ? `series_${seriesMatch[1]}` : workId;
+
                 // Only status highlighting for now, TBA
-                this.highlightWorkStatus(work, workId, true);
+                this.highlightWorkStatus(work, entityId, true);
 
                 // Reload stored IDs to reflect any changes in storage (from fic card)
                 this.loadStoredIds();
@@ -2086,6 +2142,7 @@
         // Get the work ID from DOM
         getWorkId(work) {
             const link = work.querySelector('h4.heading a');
+            if (!link) return null;
             const workId = link.href.split('/').pop();
             return workId;
         }
@@ -2162,13 +2219,17 @@
         addQuickTagDropdown(work) {
             const workId = this.getWorkId(work);
 
+            // Series bookmark blurbs store statuses under "series_ID" — use that as the lookup key
+            const seriesMatch = work.className.match(/\bseries-(\d+)\b/);
+            const entityId = seriesMatch ? `series_${seriesMatch[1]}` : workId;
+
             // Generate the dropdown options dynamically based on the status categories
             const dropdownItems = Object.entries(this.worksStoredIds).map(([status, storedIds], index) => {
                 let statusSettings = getStatusSettingsByStorageKey(status);
                 // Don't render disabled statuses
                 if (!statusSettings.enabled) return;
 
-                const statusLabel = statusSettings[storedIds.includes(workId) ? 'negativeLabel' : 'positiveLabel'];
+                const statusLabel = statusSettings[storedIds.includes(entityId) ? 'negativeLabel' : 'positiveLabel'];
                 return `<li><a href="#" class="work_quicktag_btn" data-work-id="${workId}" data-status-tag="${statusSettings.tag}" data-status-name="${status}">${statusLabel}</a></li>`;
             });
 
@@ -2179,7 +2240,7 @@
                 <header id="header" class="region" style="display: inline-flex !important; top: -1px; align-items: center !important; flex-wrap: nowrap !important; width: auto !important; max-width: none !important; position: relative !important; margin: 0 !important; padding: 0 !important; background: transparent !important; border: 0 !important; box-shadow: none !important; color: inherit !important; font-size: 1em !important; cursor: pointer; opacity: 1; word-spacing: normal !important;">
                 <ul class="navigation actions" style="margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; list-style: none !important;">
                     <li class="dropdown" aria-haspopup="true" style="position: relative !important; margin: 0 !important; padding: 0 !important;">
-                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" data-target="#">${settings.changeStatusLabel || '🤍 Change Status ▼'}</a>
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" data-target="#">${settings.changeStatusLabel || '✿ Change Status ▼'}</a>
                         <ul class="menu dropdown-menu" style="width: auto !important; position: absolute !important; z-index: 9999 !important;">
                             ${dropdownItems.join('')}
                         </ul>
@@ -2203,31 +2264,241 @@
 
                     event.target.innerHTML = settings.loadingLabel;
 
-                    // Get request to retrieve work bookmark data
-                    const bookmarkData = await this.getRemoteBookmarkData(event.target);
+                    // Detect if this button is inside a series bookmark blurb (class like "series-3279598")
+                    const blurb = event.target.closest('li.bookmark.blurb');
+                    const seriesMatch = blurb?.className.match(/\bseries-(\d+)\b/);
+
+                    if (seriesMatch) {
+                        // Series bookmark on bookmark listing page — use series endpoint
+                        const seriesId = seriesMatch[1];
+                        const entityId = `series_${seriesId}`;
+                        const authenticityToken = this.requestManager.getAuthenticityToken();
+                        let tagExists = false;
+
+                        try {
+                            const bookmarkData = await this.getRemoteSeriesBookmarkData(seriesId);
+                            const storedIds = this.storageManager.getIdsFromCategory(storageKey);
+                            tagExists = storedIds.includes(entityId) ||
+                                bookmarkData.bookmarkTags.some(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+
+                            if (tagExists) {
+                                const tagIndex = bookmarkData.bookmarkTags.findIndex(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+                                if (tagIndex !== -1) bookmarkData.bookmarkTags.splice(tagIndex, 1);
+                                this.storageManager.removeIdFromCategory(storageKey, entityId);
+                                if (this.remoteSyncManager) this.remoteSyncManager.addPendingStatusChange('remove', storageKey, entityId);
+                            } else {
+                                bookmarkData.bookmarkTags.push(targetStatusTag);
+                                this.storageManager.addIdToCategory(storageKey, entityId);
+                                if (this.remoteSyncManager) this.remoteSyncManager.addPendingStatusChange('add', storageKey, entityId);
+                            }
+
+                            // Strip auto-injected "Series" tag and any stale "Series" collection before empty check
+                            const seriesTagIdx = bookmarkData.bookmarkTags.findIndex(t => t.toLowerCase() === 'series');
+                            if (seriesTagIdx !== -1) bookmarkData.bookmarkTags.splice(seriesTagIdx, 1);
+                            const seriesColIdx = bookmarkData.collections.findIndex(c => c.toLowerCase() === 'series');
+                            if (seriesColIdx !== -1) bookmarkData.collections.splice(seriesColIdx, 1);
+
+                            if (bookmarkData.hasExistingBookmark) {
+                                const hasNoData = bookmarkData.notes === '' && bookmarkData.bookmarkTags.length === 0 && bookmarkData.collections.length === 0;
+                                if (settings.deleteEmptyBookmarks && hasNoData) {
+                                    await this.requestManager.deleteBookmark(bookmarkData.bookmarkId, authenticityToken);
+                                    bookmarkData.hasExistingBookmark = false;
+                                    bookmarkData.bookmarkId = null;
+                                } else {
+                                    // Ensure "Series" tag is always present on kept series bookmarks
+                                    if (!bookmarkData.bookmarkTags.some(t => t.toLowerCase() === 'series')) {
+                                        bookmarkData.bookmarkTags.push('Series');
+                                    }
+                                    bookmarkData.isPrivate = settings.newBookmarksPrivate;
+                                    bookmarkData.isRec = settings.newBookmarksRec;
+                                    await this.requestManager.updateBookmark(bookmarkData.bookmarkId, authenticityToken, bookmarkData);
+                                }
+                            } else {
+                                bookmarkData.isPrivate = settings.newBookmarksPrivate;
+                                bookmarkData.isRec = settings.newBookmarksRec;
+                                // Ensure "Series" tag is always present on new series bookmarks
+                                if (!bookmarkData.bookmarkTags.some(t => t.toLowerCase() === 'series')) {
+                                    bookmarkData.bookmarkTags.push('Series');
+                                }
+                                const newBookmarkId = await this.requestManager.createSeriesBookmark(seriesId, authenticityToken, bookmarkData);
+                                bookmarkData.hasExistingBookmark = true;
+                                bookmarkData.bookmarkId = newBookmarkId;
+                                DEBUG && console.log(`[FicTracker] Created series bookmark ID: ${newBookmarkId}`);
+                            }
+
+                            this.loadStoredIds();
+                            this.highlightWorkStatus(blurb, entityId);
+                            event.target.innerHTML = tagExists ?
+                                statusSettings.positiveLabel :
+                                statusSettings.negativeLabel;
+                        } catch (error) {
+                            console.error(`[FicTracker] Error during series bookmark operation on bookmarks page:`, error);
+                            event.target.innerHTML = statusSettings.positiveLabel;
+                        }
+                    } else {
+                        // Standard work bookmark
+                        const bookmarkData = await this.getRemoteBookmarkData(event.target);
+                        const authenticityToken = this.requestManager.getAuthenticityToken();
+                        // Use case-insensitive comparison to check if tag exists
+                        const tagExists = bookmarkData.bookmarkTags.some(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+
+                        try {
+                            // Send tag toggle request and modify cached bookmark data
+                            this.bookmarkData = await this.bookmarkTagManager.processTagToggle(targetStatusTag, tagExists, bookmarkData, authenticityToken,
+                                storageKey, this.storageManager, this.requestManager, this.remoteSyncManager);
+
+                            // Handle both search page and bookmarks page cases for work retrieval
+                            const work = document.querySelector(`li#work_${workId}`) || document.querySelector(`li.work-${workId}`);
+                            // Update data from localStorage to properly highlight work
+                            this.loadStoredIds();
+                            this.highlightWorkStatus(work, workId);
+                            event.target.innerHTML = tagExists ?
+                                statusSettings.positiveLabel :
+                                statusSettings.negativeLabel;
+                        } catch (error) {
+                            console.error(`[FicTracker] Error during bookmark operation:`, error);
+                        }
+                    }
+
+                } else if (event.target.matches('a.series_quicktag_btn')) {
+                    event.preventDefault();
+                    const seriesId = event.target.dataset.seriesId;
+                    const entityId = event.target.dataset.entityId;
+                    const targetStatusTag = event.target.dataset.statusTag;
+                    const storageKey = event.target.dataset.statusName;
+                    const statusSettings = getStatusSettingsByStorageKey(storageKey);
+
+                    event.target.innerHTML = settings.loadingLabel;
+
+                    const bookmarkData = this.getSeriesBookmarkDataFromPage(seriesId);
                     const authenticityToken = this.requestManager.getAuthenticityToken();
-                    // Use case-insensitive comparison to check if tag exists
-                    const tagExists = bookmarkData.bookmarkTags.some(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+
+                    // Check stored status and bookmark tags
+                    const storedIds = this.storageManager.getIdsFromCategory(storageKey);
+                    const tagExists = storedIds.includes(entityId) ||
+                        bookmarkData.bookmarkTags.some(t => t.toLowerCase() === targetStatusTag.toLowerCase());
 
                     try {
-                        // Send tag toggle request and modify cached bookmark data
-                        this.bookmarkData = await this.bookmarkTagManager.processTagToggle(targetStatusTag, tagExists, bookmarkData, authenticityToken,
-                            storageKey, this.storageManager, this.requestManager, this.remoteSyncManager);
+                        if (tagExists) {
+                            DEBUG && console.log(`[FicTracker] Removing series tag: ${targetStatusTag}`);
+                            const tagIndex = bookmarkData.bookmarkTags.findIndex(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+                            if (tagIndex !== -1) bookmarkData.bookmarkTags.splice(tagIndex, 1);
+                            this.storageManager.removeIdFromCategory(storageKey, entityId);
+                            if (this.remoteSyncManager) {
+                                this.remoteSyncManager.addPendingStatusChange('remove', storageKey, entityId);
+                            }
+                        } else {
+                            DEBUG && console.log(`[FicTracker] Adding series tag: ${targetStatusTag}`);
+                            bookmarkData.bookmarkTags.push(targetStatusTag);
+                            this.storageManager.addIdToCategory(storageKey, entityId);
+                            if (this.remoteSyncManager) {
+                                this.remoteSyncManager.addPendingStatusChange('add', storageKey, entityId);
+                            }
+                        }
 
-                        // Handle both search page and bookmarks page cases for work retrieval
-                        const work = document.querySelector(`li#work_${workId}`) || document.querySelector(`li.work-${workId}`);
-                        // Update data from localStorage to properly highlight work
-                        this.loadStoredIds();
-                        this.highlightWorkStatus(work, workId);
+                        // Strip auto-injected "Series" tag and any stale "Series" collection before empty check
+                        const seriesTagIdx = bookmarkData.bookmarkTags.findIndex(t => t.toLowerCase() === 'series');
+                        if (seriesTagIdx !== -1) bookmarkData.bookmarkTags.splice(seriesTagIdx, 1);
+                        const seriesColIdx = bookmarkData.collections.findIndex(c => c.toLowerCase() === 'series');
+                        if (seriesColIdx !== -1) bookmarkData.collections.splice(seriesColIdx, 1);
+
+                        if (bookmarkData.hasExistingBookmark) {
+                            const hasNoData = bookmarkData.notes === '' && bookmarkData.bookmarkTags.length === 0 && bookmarkData.collections.length === 0;
+                            if (settings.deleteEmptyBookmarks && hasNoData) {
+                                DEBUG && console.log(`[FicTracker] Deleting empty series bookmark ID: ${bookmarkData.bookmarkId}`);
+                                await this.requestManager.deleteBookmark(bookmarkData.bookmarkId, authenticityToken);
+                                // Reset form action so next click creates a fresh bookmark
+                                const form = document.querySelector('div#bookmark_form_placement form');
+                                if (form) form.setAttribute('action', `/series/${seriesId}/bookmarks`);
+                                bookmarkData.hasExistingBookmark = false;
+                                bookmarkData.bookmarkId = null;
+                            } else {
+                                // Ensure "Series" tag is always present on kept series bookmarks
+                                if (!bookmarkData.bookmarkTags.some(t => t.toLowerCase() === 'series')) {
+                                    bookmarkData.bookmarkTags.push('Series');
+                                }
+                                bookmarkData.isPrivate = settings.newBookmarksPrivate;
+                                bookmarkData.isRec = settings.newBookmarksRec;
+                                await this.requestManager.updateBookmark(bookmarkData.bookmarkId, authenticityToken, bookmarkData);
+                            }
+                        } else {
+                            bookmarkData.isPrivate = settings.newBookmarksPrivate;
+                            bookmarkData.isRec = settings.newBookmarksRec;
+                            // Ensure "Series" tag is always present on new series bookmarks
+                            if (!bookmarkData.bookmarkTags.some(t => t.toLowerCase() === 'series')) {
+                                bookmarkData.bookmarkTags.push('Series');
+                            }
+                            const newBookmarkId = await this.requestManager.createSeriesBookmark(seriesId, authenticityToken, bookmarkData);
+                            // Update form action so subsequent clicks treat this as an existing bookmark
+                            const form = document.querySelector('div#bookmark_form_placement form');
+                            if (form) form.setAttribute('action', `/bookmarks/${newBookmarkId}`);
+                            bookmarkData.hasExistingBookmark = true;
+                            bookmarkData.bookmarkId = newBookmarkId;
+                            DEBUG && console.log(`[FicTracker] Created series bookmark ID: ${newBookmarkId}`);
+                        }
+
+                        // Sync updated tag list back to the DOM form so subsequent clicks
+                        // read the correct current tags instead of stale initial values
+                        const tagStringInput = document.getElementById('bookmark_tag_string');
+                        if (tagStringInput) tagStringInput.value = bookmarkData.bookmarkTags.join(', ');
+
                         event.target.innerHTML = tagExists ?
                             statusSettings.positiveLabel :
                             statusSettings.negativeLabel;
                     } catch (error) {
-                        console.error(`[FicTracker] Error during bookmark operation:`, error);
+                        console.error(`[FicTracker] Error during series bookmark operation:`, error);
                     }
-
                 }
             })
+        }
+
+        // Inject a Change Status dropdown into the series page nav (series-show pages only)
+        addSeriesStatusButtons() {
+            const seriesMain = document.querySelector('div#main.series-show.region');
+            if (!seriesMain) return;
+
+            const seriesId = window.location.pathname.match(/\/series\/(\d+)/)?.[1];
+            if (!seriesId) return;
+
+            const entityId = `series_${seriesId}`;
+
+            const nav = seriesMain.querySelector('ul.navigation.actions[role="navigation"]');
+            if (!nav) return;
+
+            // Sync any status tags already on the bookmark into localStorage so initial labels are correct
+            const bookmarkData = this.getSeriesBookmarkDataFromPage(seriesId);
+            if (bookmarkData.hasExistingBookmark) {
+                // Bookmark exists — add any status tags found on it to localStorage
+                bookmarkData.bookmarkTags.forEach(tag => {
+                    const matchingStatus = settings.statuses.find(s => s.tag.toLowerCase() === tag.toLowerCase());
+                    if (matchingStatus) {
+                        this.storageManager.addIdToCategory(matchingStatus.storageKey, entityId);
+                        DEBUG && console.log(`[FicTracker] Synced series ${seriesId} to storage for status: ${matchingStatus.storageKey}`);
+                    }
+                });
+            } else {
+                // No bookmark — clear any stale status entries so labels are correct
+                settings.statuses.forEach(s => {
+                    this.storageManager.removeIdFromCategory(s.storageKey, entityId);
+                });
+                DEBUG && console.log(`[FicTracker] No series bookmark found, cleared stale storage for series_${seriesId}`);
+            }
+
+            settings.statuses
+                .filter(s => s.enabled)
+                .forEach(s => {
+                    const storedIds = this.storageManager.getIdsFromCategory(s.storageKey);
+                    const label = storedIds.includes(entityId) ? s.negativeLabel : s.positiveLabel;
+                    nav.insertAdjacentHTML('beforeend',
+                        `<li class="mark-as-read" id="series_${s.selector}"><a href="#" class="series_quicktag_btn" data-series-id="${seriesId}" data-entity-id="${entityId}" data-status-tag="${s.tag}" data-status-name="${s.storageKey}">${label}</a></li>`
+                    );
+                });
+        }
+
+        // Get series bookmark data from the current page document
+        getSeriesBookmarkDataFromPage(seriesId) {
+            const tagManager = new BookmarkTagManager(document);
+            return tagManager.getSeriesBookmarkData(seriesId);
         }
 
         // Add note functionality to the work
@@ -2273,6 +2544,26 @@
 
             } catch (error) {
                 DEBUG && console.error('[FicTracker] Error retrieving bookmark data:', error);
+            }
+        }
+
+        async getRemoteSeriesBookmarkData(seriesId) {
+            DEBUG && console.log(`[FicTracker] Quicktag status change, requesting series bookmark data seriesId=${seriesId}`);
+
+            try {
+                const data = await this.requestManager.sendRequest(`/series/${seriesId}`, null, null, 'GET');
+                const html = await data.text();
+                const tagManager = new BookmarkTagManager(html);
+                const bookmarkData = tagManager.getSeriesBookmarkData(seriesId);
+
+                DEBUG && console.log('[FicTracker] Series bookmark data parsed:');
+                DEBUG && console.table(bookmarkData);
+
+                return bookmarkData;
+
+            } catch (error) {
+                DEBUG && console.error('[FicTracker] Error retrieving series bookmark data:', error);
+                throw error;
             }
         }
 
@@ -2531,7 +2822,7 @@
                     <ul>
                         <li>
                             <label for="change_status_label">"Change Status" dropdown label:</label>
-                            <input type="text" id="change_status_label" v-model="ficTrackerSettings.changeStatusLabel" placeholder="🤍 Change Status ▼">
+                            <input type="text" id="change_status_label" v-model="ficTrackerSettings.changeStatusLabel" placeholder="✿ Change Status ▼">
                         </li>
                     </ul>
                 </section>
@@ -3203,7 +3494,7 @@
                         const initData = {
                             FT_userNotes: JSON.stringify(JSON.parse(localStorage.getItem('FT_userNotes') || '{}')),
                             [STATUS_CONFIG_KEY]: localStorage.getItem(STATUS_CONFIG_KEY) || JSON.stringify(this.ficTrackerSettings.statuses || []),
-                            [UI_CONFIG_KEY]: localStorage.getItem(UI_CONFIG_KEY) || JSON.stringify({ changeStatusLabel: this.ficTrackerSettings.changeStatusLabel || '🤍 Change Status ▼' }),
+                            [UI_CONFIG_KEY]: localStorage.getItem(UI_CONFIG_KEY) || JSON.stringify({ changeStatusLabel: this.ficTrackerSettings.changeStatusLabel || '✿ Change Status ▼' }),
                             [this.ficTrackerSettings.kudosStorageKey]: localStorage.getItem(this.ficTrackerSettings.kudosStorageKey) || ''
                         };
                         try {
