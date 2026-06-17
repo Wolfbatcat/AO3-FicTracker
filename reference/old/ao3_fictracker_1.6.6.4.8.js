@@ -1,99 +1,86 @@
 // ==UserScript==
-// @name         AO3 FicTracker
-// @author       infiniMotis
-// @version      1.6.7.4
-// @namespace    https://github.com/infiniMotis/AO3-FicTracker
-// @description  Track your favorite, finished, to-read and disliked fanfics on AO3 with sync across devices. Customizable tags and highlights make it easy to manage and spot your tracked works. Full UI customization on the preferences page.
+// @name         AO3 FicTracker - BlackBatCat's Version
+// @author       infiniMotis, BlackBatCat
+// @version      1.6.6.4.8
+// @namespace    https://github.com/Wolfbatcat/AO3-FicTracker
+// @description  Customized fork with chapter tracking, kudos button hiding, and Rose Piné-inspired theme. Tracks favorite, finished, to-read and disliked fanfics on AO3 with sync across devices.
 // @license      GNU GPLv3
 // @icon         https://archiveofourown.org/favicon.ico
 // @match        *://archiveofourown.org/*
 // @grant        GM_xmlhttpRequest
 // @run-at       document-end
 // @require      https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js
-// @supportURL   https://github.com/infiniMotis/AO3-FicTracker/issues
-// @contributionURL https://ko-fi.com/infinimotis
-// @contributionAmount 1 USD
-// @downloadURL https://update.greasyfork.org/scripts/513435/AO3%20FicTracker.user.js
-// @updateURL https://update.greasyfork.org/scripts/513435/AO3%20FicTracker.meta.js
+// @supportURL   https://github.com/Wolfbatcat/AO3-FicTracker/issues
 // ==/UserScript==
 
 
 // Description:
-// FicTracker is designed for you to effectively manage their fanfics on AO3.
-// It allows you to mark fics as finished, favorite, to-read, or disliked, providing an easy way to organize their reading list.
-
+// Customized fork of infiniMotis's AO3 FicTracker. Original: https://greasyfork.org/en/scripts/513435-ao3-fictracker
+//
+// FicTracker helps you manage your fanfics on AO3. Mark fics with a status, add custom tags and notes,
+// and highlight tracked works on listing pages.
+//
 // Key Features:
-// **Custom "To-Read" Feature:** Users can filter and search through their to-read list, enhancing the experience beyond AO3's default functionality.
-// **Data Synchronization:** Information is linked to the user's AO3 account, enabling seamless syncing across devices.
-// **Google Sheets Storage Sync:** Syncs advanced tracking data such as highlighting and custom notes across multiple devices using a Google Sheets document.
-// **User-Friendly Access:** Users can conveniently access tracking options from a dropdown menu, making the process intuitive and straightforward.
-// **Optimized performance:** The script runs features only on relevant pages, ensuring quick and efficient performance.
-
+// **Status Tracking:** Mark fics as Reading, Subscribed, To-Read, Finished, or Dropped.
+// **Custom Tags & Notes:** Add personal tags and notes to any fic for easy organization.
+// **Chapter Tracking:** On chapter pages, use the "Mark Current Chapter" button to save your reading progress to your note automatically.
+// **Kudos Sync:** Giving kudos hides the kudos button across all your devices via Google Sheets sync.
+// **Data Synchronization:** Tracking data is linked to your AO3 account and syncs across devices.
+// **Google Sheets Storage Sync:** Syncs highlights, notes, and kudos status across multiple devices.
+// **Optimized Performance:** Features only run on relevant pages for quick and efficient performance.
+//
 // Usage Instructions:
-// 1. **Tracking Fics:** On the fics page, click the status button, on search result/fics listing pages - in the right bottom corner of each work there is a dropdown.
-// 2. **Settings Panel:** At the end of the user preferences page, you will find a settings panel to customize your tracking options.
-// 3. **Accessing Your Lists:** In the dropdown menu at the top right corner, you'll find links to your tracked lists for easy access.
+// 1. **Tracking Fics:** On a fic's page, click the status button. On listing pages, use the dropdown in the bottom right corner of each work.
+// 2. **Settings Panel:** Find the settings panel at the bottom of your AO3 preferences page.
+// 3. **Accessing Your Lists:** Use the dropdown menu in the top right corner of AO3 to access your tracked lists.
 // 4. **Multi-Device Sync (Optional):**
 //    - On your main device, initialize Google Sheets storage via the settings panel.
-//    - On other devices, use the same Sheet URL and initialize - data will sync automatically.
-//    - Highlighting and custom notes will sync across devices using this feature.
+//    - On other devices, enter the same Sheet URL and initialize — data will sync automatically.
 
 (function() {
     'use strict';
 
-    // Default formatting for bookmark notes prefill
-    const DEFAULT_BOOKMARK_NOTE_FORMAT = `<details>
-    <summary>Work: {TITLE}</summary>
-    <p>{TITLE} by {AUTHOR} | {FANDOM}</p>
-    <p>{SERIES}</p>
-    <details>
-        <summary>Pairings:</summary>
-        <ul>{PAIRING_TAGS}</ul>
-    </details>
-    <details>
-        <summary>Summary</summary>
-        <blockquote>{SUMMARY}</blockquote>
-    </details>
-    </details>`;
-
+    // Prevent script from running multiple times
+    if (window.FicTrackerInitialized) {
+        return;
+    }
+    window.FicTrackerInitialized = true;
 
     // Default script settings
     let settings = {
         version: GM_info.script.version,
         statuses: [
             {
-                tag: 'Finished Reading',
-                dropdownLabel: 'My Finished Fanfics',
-                positiveLabel: '✔️ Mark as Finished',
-                negativeLabel: '🗑️ Remove from Finished',
-                selector: 'finished_reading_btn',
-                storageKey: 'FT_finished',
-                enabled: true,
-                collapse: false,
-                displayInDropdown: true,
-                highlightColor: "#000000",
-                borderSize: 0,
-                opacity: .6,
-                borderOpacity: 255,
-                hide: false,
-                highlightPriority: 1
-            },
-            {
-                tag: 'Favorite',
-                dropdownLabel: 'My Favorite Fanfics',
-                positiveLabel: '❤️ Mark as Favorite',
-                negativeLabel: '💔 Remove from Favorites',
+                tag: 'Reading',
+                dropdownLabel: 'My Current Fanfics',
+                positiveLabel: '❤️ Mark as Reading',
+                negativeLabel: '💔 Remove from Reading',
                 selector: 'favorite_btn',
                 storageKey: 'FT_favorites',
                 enabled: true,
                 collapse: false,
                 displayInDropdown: true,
-                highlightColor: "#F95454",
+                highlightColor: "#eb6f92",
                 borderSize: 2,
                 opacity: 1,
-                borderOpacity: 255,
-                hide: false,
-                highlightPriority: 1
+                borderOpacity: 125,
+                hide: false
+            },
+            {
+                tag: 'Subscribed',
+                dropdownLabel: 'My Subscribed Fanfics',
+                positiveLabel: '🪄 Mark as Subscribed',
+                negativeLabel: '🧹 Remove from Subscribed',
+                selector: 'subscribed_btn',
+                storageKey: 'FT_subscribed',
+                enabled: true,
+                collapse: false,
+                displayInDropdown: true,
+                highlightColor: "#ea9a97",
+                borderSize: 2,
+                opacity: 1,
+                borderOpacity: 125,
+                hide: false
             },
             {
                 tag: 'To Read',
@@ -105,20 +92,35 @@
                 enabled: true,
                 collapse: false,
                 displayInDropdown: true,
-                highlightColor: "#3BA7C4",
+                highlightColor: "#9ccfd8",
                 borderSize: 2,
                 opacity: 1,
-                borderOpacity: 255,
-                hide: false,
-                highlightPriority: 1
+                borderOpacity: 125,
+                hide: false
             },
             {
-                tag: 'Disliked Work',
-                dropdownLabel: 'My Disliked Fanfics',
-                positiveLabel: '👎 Mark as Disliked',
-                negativeLabel: '🧹 Remove from Disliked',
+                tag: 'Dropped',
+                dropdownLabel: 'My Dropped Fanfics',
+                positiveLabel: '👎 Mark as Dropped',
+                negativeLabel: '🧹 Remove from Dropped',
                 selector: 'disliked_btn',
                 storageKey: 'FT_disliked',
+                enabled: true,
+                collapse: true,
+                displayInDropdown: false,
+                highlightColor: "#000000",
+                borderSize: 0,
+                opacity: .6,
+                borderOpacity: 255,
+                hide: true
+            },
+            {
+                tag: 'Finished Reading',
+                dropdownLabel: 'My Finished Fanfics',
+                positiveLabel: '✔️ Mark as Finished',
+                negativeLabel: '🗑️ Remove from Finished',
+                selector: 'finished_reading_btn',
+                storageKey: 'FT_finished',
                 enabled: true,
                 collapse: true,
                 displayInDropdown: true,
@@ -126,12 +128,12 @@
                 borderSize: 0,
                 opacity: .6,
                 borderOpacity: 255,
-                hide: false,
-                highlightPriority: 1
+                hide: false
             }
         ],
         loadingLabel: '⏳Loading...',
         hideDefaultToreadBtn: true,
+        hideDefaultSubscribeBtn: true,
         newBookmarksPrivate: true,
         newBookmarksRec: false,
         lastExportTimestamp: null,
@@ -144,23 +146,102 @@
         syncInterval: 60,
         syncEnabled: false,
         syncDBInitialized: false,
-        syncWidgetEnabled: true,
+        syncWidgetEnabled: false,
         syncWidgetOpacity: .5,
         exportStatusesConfig: true,
         collapseAndHideOnBookmarks: false,
-        displayMyNotesButton: true,
-        displayOnPageSorting: true,
-        prefillBookmarkNote: false,
-        bookmarkNoteTemplate: DEFAULT_BOOKMARK_NOTE_FORMAT
+        displayMyNotesButton: false,
+        displayOnPageSorting: false,
+        enableMarkAsReadButton: true,
+        kudosStorageKey: 'FT_kudosGiven',
+        changeStatusLabel: '✿ Change Status ▼'
     };
 
     // Toggle debug info
     let DEBUG = settings.debug;
 
-
     // Utility function for status settings retrieval
     function getStatusSettingsByStorageKey(storageKey) {
         return settings.statuses.find(status => status.storageKey === storageKey);
+    }
+
+    const RESERVED_SYNC_KEYS = new Set(['FT_userNotes', 'FT_statusesConfig', 'FT_uiConfig', 'FT_kudosGiven']);
+
+    function toTitleCaseWords(text) {
+        return text
+            .split(/\s+/)
+            .filter(Boolean)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+
+    function inferTagFromStorageKey(storageKey) {
+        return toTitleCaseWords(
+            storageKey
+                .replace(/^FT_/, '')
+                .replace(/^custom_\d+_?/, '')
+                .replace(/^custom_/, '')
+                .replace(/_/g, ' ')
+                .trim() || 'Custom Tag'
+        );
+    }
+
+    function createFallbackStatus(storageKey) {
+        const tag = inferTagFromStorageKey(storageKey);
+        return {
+            tag,
+            dropdownLabel: `My ${tag} Fanfics`,
+            positiveLabel: `➕ Add ${tag}`,
+            negativeLabel: `🧹 Remove ${tag}`,
+            selector: `${storageKey}_btn`,
+            storageKey,
+            enabled: true,
+            collapse: false,
+            displayInDropdown: true,
+            highlightColor: '#888888',
+            borderSize: 2,
+            opacity: 1,
+            borderOpacity: 255,
+            hide: false
+        };
+    }
+
+    function mergeStatusesByStorageKey(baseStatuses, incomingStatuses) {
+        const merged = [];
+        const byKey = new Map();
+
+        for (const status of (baseStatuses || [])) {
+            if (!status || !status.storageKey) continue;
+            byKey.set(status.storageKey, status);
+            merged.push(status);
+        }
+
+        for (const incoming of (incomingStatuses || [])) {
+            if (!incoming || !incoming.storageKey) continue;
+            const existing = byKey.get(incoming.storageKey);
+            if (existing) {
+                Object.assign(existing, incoming);
+            } else {
+                byKey.set(incoming.storageKey, incoming);
+                merged.push(incoming);
+            }
+        }
+
+        return merged;
+    }
+
+    function inferStatusesFromStatusData(statusData, existingStatuses) {
+        const existingKeys = new Set((existingStatuses || []).map(s => s.storageKey));
+        const inferred = [];
+
+        for (const key of Object.keys(statusData || {})) {
+            if (existingKeys.has(key)) continue;
+            if (!key || !key.startsWith('FT_')) continue;
+            if (RESERVED_SYNC_KEYS.has(key)) continue;
+            inferred.push(createFallbackStatus(key));
+        }
+
+        return inferred;
     }
 
     // Utility function to check if current page is users own bookmarks page
@@ -173,29 +254,6 @@
         return url.includes('/bookmarks') && url.includes(username);
     }
 
-    // Utility function to replace bookmark note placeholders with fic details
-    function fillBookmarkNoteTemplate(template, ficData) {
-        let result = template;
-
-        const placeholders = {
-            '{AUTHOR}': `<a href="/users/${encodeURIComponent(ficData.author)}">${ficData.author}</a>`,
-            '{TITLE}': `<a href="/works/${ficData.workId}">${ficData.title}</a>`,
-            '{FANDOM}': ficData.fandom.map(item => item.outerHTML).join(' '),
-            '{SUMMARY}': ficData.summary,
-            '{PAIRING_TAGS}': ficData.pairingTags.join(""),
-            '{CHARACTER_TAGS}': ficData.characterTags.join(""),
-            '{ADDITIONAL_TAGS}': ficData.additionalTags.join(""),
-            '{SERIES}': ficData.series,
-            '{WORK_ID}': ficData.workId,
-            '{SERIES_SUMMARY}': ficData.seriesSummary
-        };
-
-        for (const [key, value] of Object.entries(placeholders)) {
-            result = result.replaceAll(key, value ?? "");
-        }
-
-        return `<div><abbr title="ft_bookmark_note" style="display:none"></abbr>${result}</div>`;
-    }
 
     // Utility function for displaying modals
     function displayModal(modalTitle, htmlContent) {
@@ -240,41 +298,38 @@
         static generateStatusStyles() {
             let css = '';
 
-            settings.statuses
-                .filter(s => s.enabled)
-                // Sort statuses by numeric priority, defines the order of final css - thus prioritizing from bottom to top
-                .sort((a, b) => a.highlightPriority - b.highlightPriority)
-                .forEach(status => {
-                    const className = `glowing-border-${status.storageKey}`;
-                    const color = status.highlightColor;
-                    const bOpacity = Math.round((status?.borderOpacity ?? 255)).toString(16)
-                    const border = `${status.borderSize}px solid ${color + bOpacity}`;
-                    const boxShadow = `0 0 10px ${color + bOpacity}, 0 0 20px ${color + bOpacity}`;
-                    const boxShadowHover = `0 0 15px ${color + bOpacity}, 0 0 30px ${color + bOpacity}`;
-                    const opacity = status.opacity;
-                    const hasBorder = status.borderSize > 0;
-                    const hide = status.hide;
+            settings.statuses.forEach(status => {
+                if (!status.enabled) return;
 
-                    // Check if we should hide this status based on bookmarks page setting
-                    const ownBookmarksPage = isOwnBookmarksPage();
-                    const shouldHide = hide && ((ownBookmarksPage && settings.collapseAndHideOnBookmarks) || !ownBookmarksPage);
+                const className = `glowing-border-${status.storageKey}`;
+                const color = status.highlightColor;
+                const bOpacity = Math.round((status?.borderOpacity ?? 255)).toString(16)
+                const border = `${status.borderSize}px solid ${color + bOpacity}`;
+                const boxShadow = `0 0 10px ${color + bOpacity}, 0 0 20px ${color + bOpacity}`;
+                const boxShadowHover = `0 0 15px ${color + bOpacity}, 0 0 30px ${color + bOpacity}`;
+                const opacity = status.opacity;
+                const hasBorder = status.borderSize > 0;
+                const hide = status.hide;
 
-                    css += `
-                        .${className} {
-                            ${shouldHide ? 'display: none !important;' : ''}
-                            ${hasBorder ? `border: ${border} !important;` : 'border: none !important;'}
-                            border-radius: 8px !important;
-                            padding: 15px !important;
-                            background-color: transparent !important;
-                            ${hasBorder ? `box-shadow: ${boxShadow} !important;` : 'box-shadow: none !important;'}
-                            transition: box-shadow 0.3s ease, opacity 0.3s ease !important;
-                            opacity: ${opacity};
-                        }
-                        .${className}:hover {
-                            ${hasBorder ? `box-shadow: ${boxShadowHover} !important;` : ''}
-                            opacity: 1;
-                        }
-                    `;
+                // Check if we should hide this status based on bookmarks page setting
+                const ownBookmarksPage = isOwnBookmarksPage();
+                const shouldHide = hide && ((ownBookmarksPage && settings.collapseAndHideOnBookmarks) || !ownBookmarksPage);
+
+                css += `
+                    .${className} {
+                        ${shouldHide ? 'display: none !important;' : ''}
+                        ${hasBorder ? `border: ${border} !important;` : ''}
+                        border-radius: 0.75em !important;
+                        padding: 15px !important;
+                        ${hasBorder ? `box-shadow: ${boxShadow} !important;` : ''}
+                        transition: box-shadow 0.3s ease, opacity 0.3s ease !important;
+                        opacity: ${opacity};
+                    }
+                    .${className}:hover {
+                        ${hasBorder ? `box-shadow: ${boxShadowHover} !important;` : ''}
+                        opacity: 1;
+                    }
+                `;
 
             });
 
@@ -439,6 +494,52 @@
             return formData;
         }
 
+        // Create a bookmark for a series with given data
+        createSeriesBookmark(seriesId, authenticityToken, bookmarkData) {
+            const url = `${this.baseApiUrl}/series/${seriesId}/bookmarks`;
+            const headers = this.getRequestHeaders();
+            const formData = this.createFormData(authenticityToken, bookmarkData);
+
+            DEBUG && console.info('[FicTracker] Sending CREATE request for series bookmark:', {
+                url,
+                headers,
+                bookmarkData
+            });
+
+            return this.sendRequest(url, formData, headers)
+                .then(response => {
+                    if (response.ok) {
+                        const bookmarkId = response.url.split('/').pop();
+                        DEBUG && console.log('[FicTracker] Created series bookmark ID:', bookmarkId);
+                        return bookmarkId;
+                    } else {
+                        throw new Error("Failed to create series bookmark. Status: " + response.status);
+                    }
+                })
+                .catch(error => {
+                    DEBUG && console.error('[FicTracker] Error creating series bookmark:', error);
+                    throw error;
+                });
+        }
+
+    }
+
+    // Utility functions for chapter detection
+    function isChapterPage() {
+        // Match both /works/123/chapters/456 and direct /chapters/456 URLs
+        return /\/chapters\/\d+/.test(window.location.pathname);
+    }
+
+    function getCurrentChapterNumber() {
+        if (!isChapterPage()) return null;
+
+        const chapterPreface = document.querySelector('.chapter.preface.group h3.title a');
+        if (!chapterPreface) return null;
+
+        const chapterText = chapterPreface.textContent.trim();
+        const match = chapterText.match(/Chapter\s+(\d+)/i);
+
+        return match ? parseInt(match[1], 10) : null;
     }
 
     // Class for managing custom user notes
@@ -478,8 +579,7 @@
                 };
 
                 if (ficDetails && !('title' in notes[workId])) {
-                    const { title, author, fandom } = ficDetails;
-                    Object.assign(notes[workId], { title, author, fandom: fandom[0].outerHTML });
+                    Object.assign(notes[workId], ficDetails);
                 }
             }
 
@@ -651,64 +751,33 @@
 
 
         getFicDetails(workId, isWorkPage = false) {
-            const details = isWorkPage
-                ? this.getFicDetailsFromWorkPage()
-                : this.getFicDetailsFromListing(workId);
-            return { ...details, workId };
-        }
-
-
-        getFicDetailsFromWorkPage() {
-            const title = document.querySelector('h2.title.heading').textContent.trim();
-            const author = document.querySelector('a[rel="author"]')?.textContent;
-            const fandom = [...document.querySelectorAll('dd.fandom.tags ul a.tag')];
-            const summary = document.querySelector('div.summary.module > blockquote.userstuff').innerText;
-            const series = document.querySelector('dd.series span.position')?.outerHTML.trim();
-
-            const pairingTags = Array.from(
-                document.querySelectorAll('dd.relationship.tags > ul.commas li')
-            ).map(li => li.outerHTML.trim());
-
-            const characterTags = Array.from(
-                document.querySelectorAll('dd.character.tags > ul.commas li')
-            ).map(li => li.outerHTML.trim());
-
-            const additionalTags = Array.from(
-                document.querySelectorAll('dd.freeform.tags > ul.commas li')
-            ).map(li => li.outerHTML.trim());
-
-
-            return { title, author, fandom, summary, pairingTags, characterTags, additionalTags, series};
-        }
-
-
-        getFicDetailsFromListing(workId){
+            if (isWorkPage) {
+                const title = document.querySelector('h2.title.heading').textContent.trim();
+                const author = document.querySelector('a[rel="author"]')?.textContent;
+                const fandom = document.querySelector('dd.fandom.tags ul a.tag').textContent;
+                return {title, author, fandom}
+            } else {
                 const fic = document.querySelector(`li#work_${workId}, li.work-${workId}`);
                 if (!fic) return;
 
                 const header = fic.querySelector('div.header.module');
                 const title = header.querySelector('a[href^="/works/"]').textContent;
                 const author = header.querySelector('a[rel="author"]')?.textContent;
-                const fandom = [...header.querySelectorAll('h5.fandoms.heading > a.tag')];
-                const summary = fic.querySelector('blockquote.userstuff.summary').innerText;
-                const series = fic.querySelector('li ul.series li')?.innerHTML.trim();
-
-                const pairingTags = Array.from(
-                    fic.querySelectorAll('ul.tags.commas li.relationships')
-                ).map(li => li.outerHTML.trim());
-
-                const characterTags = Array.from(
-                    fic.querySelectorAll('ul.tags.commas li.characters')
-                ).map(li => li.outerHTML.trim());
-
-                const additionalTags = Array.from(
-                    fic.querySelectorAll('ul.tags.commas li.freeforms')
-                ).map(li => li.outerHTML.trim());
+                // explicitly save only one fandom to avoid clutter
+                const fandom = header.querySelector('h5.fandoms.heading > a.tag').textContent;
+                return {title, author, fandom}
+            }
+        }
 
 
-                const seriesSummary = document.querySelector('div.series-show dl.series.meta.group blockquote.userstuff')?.textContent;
+        prependChapterMarker(existingText, chapterNum) {
+            // Remove any existing "Last Read: Ch. X" marker (including trailing newlines)
+            const cleanedText = existingText.replace(/^Last Read: Ch\.\s*\d+\s*\n*/m, '').trim();
 
-                return {title, author, fandom, summary, pairingTags, characterTags, additionalTags, series, seriesSummary}
+            // Prepend new marker with double line break
+            const newMarker = `Last Read: Ch. ${chapterNum}`;
+
+            return cleanedText ? `${newMarker}\n\n${cleanedText}` : newMarker;
         }
 
 
@@ -716,13 +785,10 @@
             const container = document.createElement('span');
 
             if (note.title) {
-                const temp = document.createElement('div');
-                temp.innerHTML = note.fandom;
-                const fandomText = temp.querySelector('a')?.textContent ?? note.fandom;
                 const fandomLink = document.createElement('a');
                 fandomLink.target = '_blank';
-                fandomLink.href = `/tags/${encodeURIComponent(fandomText)}/works`;
-                fandomLink.textContent = fandomText;
+                fandomLink.href = `/tags/${encodeURIComponent(note.fandom)}/works`;
+                fandomLink.textContent = note.fandom;
 
                 const workLink = document.createElement('a');
                 workLink.target = '_blank';
@@ -861,8 +927,11 @@
     class RemoteStorageSyncManager {
         constructor() {
             this.storageManager = new StorageManager();
-            // Sync all configured status storage keys dynamically
-            this.syncedKeys = settings.statuses.map(s => s.storageKey);
+            this.STATUS_CONFIG_KEY = 'FT_statusesConfig';
+            this.LAST_SYNCED_STATUS_CONFIG_KEY = 'FT_lastSyncedStatusesConfig';
+            this.UI_CONFIG_KEY = 'FT_uiConfig';
+            this.LAST_SYNCED_UI_CONFIG_KEY = 'FT_lastSyncedUiConfig';
+            this.rebuildSyncedKeys();
             this.PENDING_CHANGES_KEY = 'FT_pendingChanges';
             this.LAST_SYNC_KEY = 'FT_lastSync';
 
@@ -884,6 +953,92 @@
             DEBUG && console.log('[FicTracker] Initialized RemoteStorageSyncManager with syncInterval:', this.syncInterval / 1000, 's');
         }
 
+        rebuildSyncedKeys() {
+            // Sync all configured status storage keys dynamically
+            this.syncedKeys = settings.statuses.map(s => s.storageKey);
+            // Sync custom status definitions, UI config, and kudos state as well
+            this.syncedKeys.push(this.STATUS_CONFIG_KEY);
+            this.syncedKeys.push(this.UI_CONFIG_KEY);
+            this.syncedKeys.push(settings.kudosStorageKey);
+        }
+
+        applySyncedStatusesConfig(configRaw) {
+            try {
+                if (!configRaw) return false;
+
+                const parsedStatuses = JSON.parse(configRaw);
+                if (!Array.isArray(parsedStatuses)) return false;
+
+                const validStatuses = parsedStatuses.filter(s => s && typeof s.storageKey === 'string' && typeof s.tag === 'string');
+                if (validStatuses.length === 0) return false;
+
+                const existingByStorageKey = new Map((settings.statuses || []).map(status => [status.storageKey, status]));
+                const syncedStatuses = validStatuses.map(status => {
+                    const existing = existingByStorageKey.get(status.storageKey) || {};
+                    return { ...existing, ...status };
+                });
+                settings.statuses = syncedStatuses;
+
+                const currentSettings = JSON.parse(localStorage.getItem('FT_settings') || '{}');
+                currentSettings.statuses = syncedStatuses;
+                localStorage.setItem('FT_settings', JSON.stringify(currentSettings));
+                localStorage.setItem(this.STATUS_CONFIG_KEY, JSON.stringify(syncedStatuses));
+
+                this.rebuildSyncedKeys();
+                DEBUG && console.log('[FicTracker] Applied synced status configuration. Total statuses:', syncedStatuses.length);
+                return true;
+            } catch (error) {
+                DEBUG && console.warn('[FicTracker] Failed to apply synced status configuration:', error);
+                return false;
+            }
+        }
+
+        syncStatusesConfigIfNeeded() {
+            const localConfig = localStorage.getItem(this.STATUS_CONFIG_KEY) || JSON.stringify(settings.statuses || []);
+            this.storageManager.setItem(this.STATUS_CONFIG_KEY, localConfig);
+
+            const lastSyncedConfig = this.storageManager.getItem(this.LAST_SYNCED_STATUS_CONFIG_KEY) || '';
+            if (localConfig !== lastSyncedConfig) {
+                this.addPendingStatusChange('set', this.STATUS_CONFIG_KEY, localConfig);
+                DEBUG && console.log('[FicTracker] Queued status config sync update');
+            }
+        }
+
+        buildUiConfigPayload() {
+            return JSON.stringify({
+                changeStatusLabel: settings.changeStatusLabel || '✿ Change Status ▼'
+            });
+        }
+
+        applyUiConfig(configRaw) {
+            try {
+                if (!configRaw) return;
+                const parsed = JSON.parse(configRaw);
+                if (!parsed || typeof parsed !== 'object') return;
+
+                if (parsed.changeStatusLabel) {
+                    settings.changeStatusLabel = parsed.changeStatusLabel;
+                    const currentSettings = JSON.parse(localStorage.getItem('FT_settings') || '{}');
+                    currentSettings.changeStatusLabel = parsed.changeStatusLabel;
+                    localStorage.setItem('FT_settings', JSON.stringify(currentSettings));
+                    DEBUG && console.log('[FicTracker] Applied synced UI config:', parsed);
+                }
+            } catch (error) {
+                DEBUG && console.warn('[FicTracker] Failed to apply UI config:', error);
+            }
+        }
+
+        syncUiConfigIfNeeded() {
+            const localConfig = this.buildUiConfigPayload();
+            this.storageManager.setItem(this.UI_CONFIG_KEY, localConfig);
+
+            const lastSyncedConfig = this.storageManager.getItem(this.LAST_SYNCED_UI_CONFIG_KEY) || '';
+            if (localConfig !== lastSyncedConfig) {
+                this.addPendingStatusChange('set', this.UI_CONFIG_KEY, localConfig);
+                DEBUG && console.log('[FicTracker] Queued UI config sync update');
+            }
+        }
+
         // Initialize sync system
         init() {
             // Initialize pending changes storage if not present
@@ -894,7 +1049,16 @@
                 }));
             }
 
+            if (!this.storageManager.getItem(this.STATUS_CONFIG_KEY)) {
+                this.storageManager.setItem(this.STATUS_CONFIG_KEY, JSON.stringify(settings.statuses || []));
+            }
+
+            if (!this.storageManager.getItem(this.UI_CONFIG_KEY)) {
+                this.storageManager.setItem(this.UI_CONFIG_KEY, this.buildUiConfigPayload());
+            }
+
             DEBUG && console.log('[FicTracker] Pending changes storage initialized');
+            DEBUG && console.log('[FicTracker] Synced keys:', this.syncedKeys);
 
             // Set up event listeners for (dis)connecting to network, tab focus change
             window.addEventListener('online', this.handleOnline);
@@ -1095,7 +1259,12 @@
             };
 
             DEBUG && console.log(`[FicTracker] Queuing pending status change: ${action} ${statusKey} → ${fanficId}`);
-            this.optimizeOperations(pendingChanges.operations, newOperation);
+            const shouldEnqueue = this.optimizeOperations(pendingChanges.operations, newOperation);
+
+            if (!shouldEnqueue) {
+                this.savePendingChanges(pendingChanges);
+                return;
+            }
 
             pendingChanges.operations.push(newOperation);
             this.savePendingChanges(pendingChanges);
@@ -1132,19 +1301,28 @@
             for (let i = operations.length - 1; i >= 0; i--) {
                 const existing = operations[i];
 
-                if (existing.key === key && existing.value === value) {
-                    // Same key-value pair
-                    if (existing.action !== action) {
-                        // Conflicting actions (add vs remove) - remove the existing one
+                if (existing.key === key) {
+                    if (action === 'set' && existing.action === 'set') {
+                        // A newer 'set' always supersedes an older 'set' for the same key,
+                        // regardless of value — remove the stale one so only the latest survives.
                         operations.splice(i, 1);
-                        DEBUG && console.log(`[FicTracker] Optimized conflicting operations for ${key}:${value}`);
-                    } else {
-                        // Same action - remove duplicate
-                        DEBUG && console.log(`[FicTracker] Removed duplicate operation for ${key}:${value}`);
-                        return; // Don't add the new operation either
+                        DEBUG && console.log(`[FicTracker] Replaced stale 'set' operation for key "${key}" with updated value`);
+                    } else if (existing.value === value) {
+                        // Same key-value pair for add/remove operations
+                        if (existing.action !== action) {
+                            // Conflicting actions (add vs remove) - remove the existing one
+                            operations.splice(i, 1);
+                            DEBUG && console.log(`[FicTracker] Optimized conflicting operations for ${key}:${value}`);
+                        } else {
+                            // Same action - remove duplicate
+                            DEBUG && console.log(`[FicTracker] Removed duplicate operation for ${key}:${value}`);
+                            return false; // Don't add the new operation either
+                        }
                     }
                 }
             }
+
+            return true;
         }
 
         // Get pending changes from localStorage
@@ -1187,12 +1365,23 @@
                 return;
             }
 
+            this.syncStatusesConfigIfNeeded();
+            this.syncUiConfigIfNeeded();
+
             // update widget appropriately
             this.isSyncing = true;
             this.updateSyncWidget('syncing');
 
             const pendingChanges = this.getPendingChanges();
+            const statusConfigSetOps = (pendingChanges.operations || []).filter(
+                op => op && op.action === 'set' && op.key === this.STATUS_CONFIG_KEY
+            );
+            const attemptedStatusConfigSync = statusConfigSetOps.length > 0;
+            const attemptedStatusConfigValue = attemptedStatusConfigSync
+                ? String(statusConfigSetOps[statusConfigSetOps.length - 1].value || '')
+                : '';
             DEBUG && console.log('[FicTracker] Performing sync, pending operations:', pendingChanges.operations.length, 'notes:', pendingChanges.notes.length);
+            DEBUG && pendingChanges.operations.length > 0 && console.log('[FicTracker] Operations to sync:', pendingChanges.operations);
 
             try {
                 let syncData = {
@@ -1204,9 +1393,32 @@
 
                 const response = await this.sendSyncRequest(syncData);
 
-                if (response.success) {
+                const syncSucceeded = response?.success === true || response?.status === 'success';
+
+                if (syncSucceeded) {
+                    const remoteStatusConfig = response?.status_data?.[this.STATUS_CONFIG_KEY];
+                    const statusConfigConfirmed = !attemptedStatusConfigSync || remoteStatusConfig === attemptedStatusConfigValue;
+
+                    if (attemptedStatusConfigSync && !statusConfigConfirmed) {
+                        DEBUG && console.warn('[FicTracker] FT_statusesConfig sync not confirmed by server response. Keeping local config and re-queuing update.');
+                        response.status_data = response.status_data || {};
+                        response.status_data[this.STATUS_CONFIG_KEY] = attemptedStatusConfigValue;
+                    }
+
                     // Update local storage with server data
                     this.updateLocalStorage(response.status_data);
+
+                    if (statusConfigConfirmed) {
+                        const syncedConfig = this.storageManager.getItem(this.STATUS_CONFIG_KEY);
+                        if (syncedConfig) {
+                            this.storageManager.setItem(this.LAST_SYNCED_STATUS_CONFIG_KEY, syncedConfig);
+                        }
+                    }
+
+                    const syncedUiConfig = this.storageManager.getItem(this.UI_CONFIG_KEY);
+                    if (syncedUiConfig) {
+                        this.storageManager.setItem(this.LAST_SYNCED_UI_CONFIG_KEY, syncedUiConfig);
+                    }
 
                     this.timeUntilNextSync = this.syncInterval / 1000;
                     this.isSyncing = false;
@@ -1219,6 +1431,10 @@
 
                     // Clear pending changes
                     this.clearPendingChanges();
+
+                    if (attemptedStatusConfigSync && !statusConfigConfirmed) {
+                        this.addPendingStatusChange('set', this.STATUS_CONFIG_KEY, attemptedStatusConfigValue);
+                    }
 
                     // Update last sync timestamp
                     this.storageManager.setItem(this.LAST_SYNC_KEY, Date.now().toString());
@@ -1276,12 +1492,71 @@
 
         // Update local storage with server data
         updateLocalStorage(serverData) {
+            const safeServerData = serverData || {};
+
+            // Apply UI config (changeStatusLabel, etc.)
+            if (Object.prototype.hasOwnProperty.call(safeServerData, this.UI_CONFIG_KEY)) {
+                const uiConfigValue = safeServerData[this.UI_CONFIG_KEY] || '';
+                const lastSyncedUiConfig = this.storageManager.getItem(this.LAST_SYNCED_UI_CONFIG_KEY) || '';
+                const localUiConfig = this.storageManager.getItem(this.UI_CONFIG_KEY) || '';
+                const hasUnpushedUiChange = localUiConfig && localUiConfig !== lastSyncedUiConfig;
+
+                if (!hasUnpushedUiChange) {
+                    this.applyUiConfig(uiConfigValue);
+                    this.storageManager.setItem(this.UI_CONFIG_KEY, uiConfigValue);
+                } else {
+                    DEBUG && console.log('[FicTracker] Skipping server UI config overwrite — local config has unpushed changes');
+                }
+            }
+
+            // Apply status configuration first so syncedKeys include remote custom keys
+            let configApplied = false;
+            if (Object.prototype.hasOwnProperty.call(safeServerData, this.STATUS_CONFIG_KEY)) {
+                const configValue = safeServerData[this.STATUS_CONFIG_KEY] || '';
+
+                // Only overwrite the local config with the server's version when there is no
+                // local change that hasn't been synced yet.  If the local config differs from
+                // the last successfully-synced config it means the user just made a change that
+                // hasn't reached the server — blindly overwriting it would silently discard that
+                // change and prevent it from ever being queued again.
+                const localConfig = this.storageManager.getItem(this.STATUS_CONFIG_KEY) || '';
+                const lastSyncedConfig = this.storageManager.getItem(this.LAST_SYNCED_STATUS_CONFIG_KEY) || '';
+                const hasUnpushedLocalChange = localConfig && localConfig !== lastSyncedConfig;
+
+                if (!hasUnpushedLocalChange) {
+                    this.storageManager.setItem(this.STATUS_CONFIG_KEY, configValue);
+                    configApplied = this.applySyncedStatusesConfig(configValue);
+                } else {
+                    DEBUG && console.log('[FicTracker] Skipping server config overwrite — local config has unpushed changes');
+                    // Still attempt to apply any new custom statuses from the server config
+                    // (e.g. added on another device) without losing local display settings.
+                    configApplied = this.applySyncedStatusesConfig(configValue);
+                    // But restore the local config so the unpushed styling changes survive.
+                    this.storageManager.setItem(this.STATUS_CONFIG_KEY, localConfig);
+                }
+            }
+
+            if (!configApplied) {
+                const inferredStatuses = inferStatusesFromStatusData(safeServerData, settings.statuses);
+                if (inferredStatuses.length > 0) {
+                    settings.statuses = mergeStatusesByStorageKey(settings.statuses, inferredStatuses);
+                    const currentSettings = JSON.parse(localStorage.getItem('FT_settings') || '{}');
+                    currentSettings.statuses = settings.statuses;
+                    localStorage.setItem('FT_settings', JSON.stringify(currentSettings));
+                    localStorage.setItem(this.STATUS_CONFIG_KEY, JSON.stringify(settings.statuses));
+                    this.rebuildSyncedKeys();
+                    DEBUG && console.log('[FicTracker] Inferred custom statuses from synced keys:', inferredStatuses.map(s => s.storageKey));
+                }
+            }
+
             // Iterate through the list of keys that are eligible for syncing
             for (const key of this.syncedKeys) {
                 // If the server response contains the key, update local storage with its value
-                if (serverData.hasOwnProperty(key)) {
-                    this.storageManager.setItem(key, serverData[key]);
-                    DEBUG && console.log(`[FicTracker] Synced key "${key}" updated from server data.`);
+                if (Object.prototype.hasOwnProperty.call(safeServerData, key)) {
+                    this.storageManager.setItem(key, safeServerData[key]);
+                    DEBUG && console.log(`[FicTracker] Synced key "${key}" updated from server data:`, safeServerData[key]);
+                } else {
+                    DEBUG && console.warn(`[FicTracker] Server data missing expected key "${key}"`);
                 }
             }
         }
@@ -1393,13 +1668,11 @@
             // Toggle the bookmark tag and log the action
             if (isTagPresent) {
                 DEBUG && console.log(`[FicTracker] Removing tag: ${tag}`);
-
                 // Use case-insensitive search to find and remove the tag
                 const tagIndex = bookmarkData.bookmarkTags.findIndex(t => t.toLowerCase() === tag.toLowerCase());
                 if (tagIndex !== -1) {
                     bookmarkData.bookmarkTags.splice(tagIndex, 1);
                 }
-
                 storageManager.removeIdFromCategory(storageKey, bookmarkData.workId);
 
             if (remoteSyncManager) {
@@ -1420,17 +1693,12 @@
             // If the bookmark exists - update it, if not - create a new one
             if (bookmarkData.workId !== bookmarkData.bookmarkId) {
                 // If bookmark becomes empty (no notes, tags, collections) after status change - delete it
-                const noteIsOnlyPrefill = /^\s*<div>\s*<abbr title="ft_bookmark_note">/.test(bookmarkData.notes);
-                const hasNoData = (bookmarkData.notes === "" || noteIsOnlyPrefill)
-                    && bookmarkData.bookmarkTags.length === 0
-                    && bookmarkData.collections.length === 0;
-
+                const hasNoData = bookmarkData.notes === "" && bookmarkData.bookmarkTags.length === 0 && bookmarkData.collections.length === 0;
 
                 if (settings.deleteEmptyBookmarks && hasNoData) {
                     DEBUG && console.log(`[FicTracker] Deleting empty bookmark ID: ${bookmarkData.bookmarkId}`);
                     await requestManager.deleteBookmark(bookmarkData.bookmarkId, authenticityToken);
                     bookmarkData.bookmarkId = bookmarkData.workId;
-
                 } else {
                     // Update the existing bookmark
                     await requestManager.updateBookmark(bookmarkData.bookmarkId, authenticityToken, bookmarkData);
@@ -1446,6 +1714,27 @@
             }
 
             return bookmarkData
+        }
+
+        // Gather series bookmark data from a series page document (or current document)
+        getSeriesBookmarkData(seriesId) {
+            const form = this.doc.querySelector('div#bookmark_form_placement form');
+            const action = form?.getAttribute('action') || '';
+            // action is /series/ID/bookmarks (no bookmark) or /bookmarks/ID (existing bookmark)
+            const hasExistingBookmark = action.startsWith('/bookmarks/');
+            const bookmarkId = hasExistingBookmark ? action.split('/')[2] : null;
+
+            return {
+                workId: `series_${seriesId}`,
+                bookmarkId,
+                hasExistingBookmark,
+                pseudId: this.getPseudId(),
+                bookmarkTags: this.getBookmarkTags(),
+                notes: this.getBookmarkNotes(),
+                collections: this.getBookmarkCollections(),
+                isPrivate: this.isBookmarkPrivate(),
+                isRec: this.isBookmarkRec()
+            };
         }
     }
 
@@ -1476,6 +1765,12 @@
             // Hide the default "to read" button if specified in settings
             if (settings.hideDefaultToreadBtn) {
                 document.querySelector('li.mark').style.display = "none";
+            }
+
+            // Hide the default "subscribe" button if specified in settings
+            if (settings.hideDefaultSubscribeBtn) {
+                const subscribeBtn = document.querySelector('li.subscribe');
+                if (subscribeBtn) subscribeBtn.style.display = "none";
             }
 
             this.addButtons();
@@ -1523,7 +1818,22 @@
                 }
             });
 
+            // Add "Mark Chapter" button if enabled and on a chapter page
+            if (settings.enableMarkAsReadButton && isChapterPage()) {
+                const markChapterButtonHtml = '<li class="mark-as-read" id="mark-chapter-read"><a href="#">📖 Mark Chapter</a></li>';
+
+                actionsMenu.insertAdjacentHTML('beforeend', markChapterButtonHtml);
+
+                if (settings.displayBottomActionButtons) {
+                    bottomActionsMenu.insertAdjacentHTML('beforeend', markChapterButtonHtml);
+                }
+            }
+
             this.setupClickListeners();
+
+            // Initialize kudos tracking
+            const kudosManager = new KudosManager(this.storageManager, this.remoteSyncManager);
+            kudosManager.init();
         }
 
         // Set up click listeners for each action button
@@ -1548,12 +1858,21 @@
                     });
                 });
             });
+
+            // Setup listener for "Mark Chapter" button
+            if (settings.enableMarkAsReadButton && isChapterPage()) {
+                document.querySelectorAll('#mark-chapter-read').forEach(button => {
+                    button.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        this.handleMarkChapterAsRead();
+                    });
+                });
+            }
         }
 
         // Handle the action for adding/removing/deleting a bookmark tag
         async handleActionButton(tag, positiveLabel, negativeLabel, selector, storageKey) {
             const authenticityToken = this.requestManager.getAuthenticityToken();
-
             // Use case-insensitive comparison to check if tag is present
             const isTagPresent = this.bookmarkData.bookmarkTags.some(t => t.toLowerCase() === tag.toLowerCase());
 
@@ -1565,13 +1884,6 @@
                 btn.innerHTML = settings.loadingLabel;
                 btn.disabled = true;
             });
-
-
-            // Fill the contents of bookmark note if enabled and note is not already there and we are adding tag
-            if (settings.prefillBookmarkNote && !this.bookmarkData.notes.includes("ft_bookmark_note") && !isTagPresent) {
-                let ficDetails = this.userNotesManager.getFicDetails(this.bookmarkData.workId, true);
-                this.bookmarkData.notes += fillBookmarkNoteTemplate(settings.bookmarkNoteTemplate, ficDetails)
-            }
 
             try {
                 // Send tag toggle request and modify cached bookmark data
@@ -1596,6 +1908,153 @@
         }
 
 
+        handleMarkChapterAsRead() {
+            const chapterNum = getCurrentChapterNumber();
+            if (!chapterNum) {
+                console.error('[FicTracker] Could not determine chapter number');
+                return;
+            }
+
+            const workId = this.bookmarkData.workId;
+            const existingNote = this.userNotesManager.getNote(workId);
+            const existingText = existingNote?.text || '';
+
+            DEBUG && console.log('[FicTracker] Mark as Read - Before:', existingText);
+
+            // Prepend chapter marker
+            const updatedText = this.userNotesManager.prependChapterMarker(existingText, chapterNum);
+
+            DEBUG && console.log('[FicTracker] Mark as Read - After:', updatedText);
+
+            // Save note
+            const ficDetails = this.userNotesManager.getFicDetails(workId, true);
+            this.userNotesManager.saveNote(workId, updatedText, ficDetails);
+
+            DEBUG && console.log('[FicTracker] Mark as Read - Saved to storage');
+
+            // Verify save
+            const savedNote = this.userNotesManager.getNote(workId);
+            DEBUG && console.log('[FicTracker] Mark as Read - Verified:', savedNote?.text);
+
+            // Update or create note display if displayUserNotes is enabled
+            if (settings.displayUserNotes) {
+                const ficWrapperContainer = document.querySelector('#main div.wrapper');
+                const containerForNotes = ficWrapperContainer?.parentElement;
+
+                if (containerForNotes) {
+                    const noteBlock = containerForNotes.querySelector(`.user-note-preview[data-work-id="${workId}"]`);
+
+                    if (noteBlock) {
+                        // Update existing note display
+                        this.userNotesManager.updateNoteDisplay(noteBlock, workId, true);
+                    } else {
+                        // Check if this is the first note being added (no handlers set up yet)
+                        const hasExistingNotes = containerForNotes.querySelector('.user-note-preview') !== null;
+
+                        // Create note display
+                        ficWrapperContainer.insertAdjacentHTML('afterend',
+                            this.userNotesManager.generateNoteHtml(workId, true)
+                        );
+
+                        // Only setup handlers if this is the first note (handlers not already set up)
+                        if (!hasExistingNotes) {
+                            this.userNotesManager.setupNoteHandlers(containerForNotes, true);
+                        }
+                    }
+                }
+            }
+
+            // Visual feedback
+            const buttons = document.querySelectorAll('#mark-chapter-read a');
+            buttons.forEach((btn) => {
+                const originalText = btn.textContent;
+                btn.textContent = '✓ Marked!';
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                }, 1500);
+            });
+        }
+
+
+    }
+
+    // Class for managing kudos button hiding and sync
+    class KudosManager {
+        constructor(storageManager, remoteSyncManager = null) {
+            this.storageManager = storageManager;
+            this.remoteSyncManager = remoteSyncManager;
+            this.storageKey = settings.kudosStorageKey;
+        }
+
+        // Get work ID from the kudos form
+        getWorkIdFromForm() {
+            const workIdInput = document.getElementById('kudo_commentable_id');
+            return workIdInput ? workIdInput.value : null;
+        }
+
+        // Get the kudos button element
+        getKudosButton() {
+            return document.getElementById('kudo_submit');
+        }
+
+        // Check if user has already given kudos to this work
+        hasGivenKudos(workId) {
+            const kudosGiven = this.storageManager.getIdsFromCategory(this.storageKey);
+            return kudosGiven.includes(workId);
+        }
+
+        // Record that kudos was given and hide the button
+        recordKudos(workId, button) {
+            // Add to local storage
+            this.storageManager.addIdToCategory(this.storageKey, workId);
+            DEBUG && console.info('[FicTracker] Kudos recorded locally for work:', workId);
+            DEBUG && console.info('[FicTracker] Current kudos storage:', this.storageManager.getItem(this.storageKey));
+
+            // Queue sync operation if remote sync is enabled
+            if (this.remoteSyncManager) {
+                this.remoteSyncManager.addPendingStatusChange('add', this.storageKey, workId);
+                DEBUG && console.info('[FicTracker] Kudos sync operation queued for work:', workId);
+            } else {
+                DEBUG && console.info('[FicTracker] Remote sync not enabled, kudos stored locally only');
+            }
+
+            // Hide the button
+            button.style.display = 'none';
+        }
+
+        // Initialize kudos tracking on the current page
+        init() {
+            const kudosButton = this.getKudosButton();
+            const workId = this.getWorkIdFromForm();
+
+            // Early return if kudos button doesn't exist
+            if (!kudosButton) {
+                DEBUG && console.info('[FicTracker] No kudos button found on this page');
+                return;
+            }
+
+            // Early return if work ID can't be determined
+            if (!workId) {
+                DEBUG && console.warn('[FicTracker] Could not determine work ID for kudos tracking');
+                return;
+            }
+
+            // Check if kudos already given
+            if (this.hasGivenKudos(workId)) {
+                // Hide button immediately
+                kudosButton.style.display = 'none';
+                DEBUG && console.info('[FicTracker] Kudos already given, button hidden for work:', workId);
+            } else {
+                // Attach click listener to record kudos when given
+                kudosButton.addEventListener('click', () => {
+                    // Small delay to ensure AO3's kudos form processes first
+                    setTimeout(() => {
+                        this.recordKudos(workId, kudosButton);
+                    }, 100);
+                });
+                DEBUG && console.info('[FicTracker] Kudos tracking initialized for work:', workId);
+            }
+        }
     }
 
     // Class for handling features on works list page
@@ -1620,6 +2079,9 @@
 
             // Listen for clicks on quick tag buttons
             this.setupQuickTagListener();
+
+            // Inject status buttons on series pages
+            this.addSeriesStatusButtons();
 
             // Display on page sorting controls if enabled
             if (settings.displayOnPageSorting) {
@@ -1655,8 +2117,12 @@
                     return;
                 }
 
+                // Series bookmark blurbs store statuses under "series_ID"
+                const seriesMatch = work.className.match(/\bseries-(\d+)\b/);
+                const entityId = seriesMatch ? `series_${seriesMatch[1]}` : workId;
+
                 // Only status highlighting for now, TBA
-                this.highlightWorkStatus(work, workId, true);
+                this.highlightWorkStatus(work, entityId, true);
 
                 // Reload stored IDs to reflect any changes in storage (from fic card)
                 this.loadStoredIds();
@@ -1676,6 +2142,7 @@
         // Get the work ID from DOM
         getWorkId(work) {
             const link = work.querySelector('h4.heading a');
+            if (!link) return null;
             const workId = link.href.split('/').pop();
             return workId;
         }
@@ -1752,13 +2219,17 @@
         addQuickTagDropdown(work) {
             const workId = this.getWorkId(work);
 
+            // Series bookmark blurbs store statuses under "series_ID" — use that as the lookup key
+            const seriesMatch = work.className.match(/\bseries-(\d+)\b/);
+            const entityId = seriesMatch ? `series_${seriesMatch[1]}` : workId;
+
             // Generate the dropdown options dynamically based on the status categories
             const dropdownItems = Object.entries(this.worksStoredIds).map(([status, storedIds], index) => {
                 let statusSettings = getStatusSettingsByStorageKey(status);
                 // Don't render disabled statuses
                 if (!statusSettings.enabled) return;
 
-                const statusLabel = statusSettings[storedIds.includes(workId) ? 'negativeLabel' : 'positiveLabel'];
+                const statusLabel = statusSettings[storedIds.includes(entityId) ? 'negativeLabel' : 'positiveLabel'];
                 return `<li><a href="#" class="work_quicktag_btn" data-work-id="${workId}" data-status-tag="${statusSettings.tag}" data-status-name="${status}">${statusLabel}</a></li>`;
             });
 
@@ -1766,11 +2237,11 @@
             if (dropdownItems.length === 0) return;
 
             work.querySelector('dl.stats').insertAdjacentHTML('beforeend', `
-                <header id="header" class="region" style="padding: 0; font-size: 1em !important; cursor: pointer; opacity: 1; word-spacing: normal !important; display: inline;">
-                <ul class="navigation actions">
-                    <li class="dropdown" aria-haspopup="true" style="position: relative !important;>
-                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" data-target="#">✨ Change Status ▼</a>
-                        <ul class="menu dropdown-menu" style="width: auto !important;">
+                <header id="header" class="region" style="display: inline-flex !important; top: -1px; align-items: center !important; flex-wrap: nowrap !important; width: auto !important; max-width: none !important; position: relative !important; margin: 0 !important; padding: 0 !important; background: transparent !important; border: 0 !important; box-shadow: none !important; color: inherit !important; font-size: 1em !important; cursor: pointer; opacity: 1; word-spacing: normal !important;">
+                <ul class="navigation actions" style="margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; list-style: none !important;">
+                    <li class="dropdown" aria-haspopup="true" style="position: relative !important; margin: 0 !important; padding: 0 !important;">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" data-target="#">${settings.changeStatusLabel || '✿ Change Status ▼'}</a>
+                        <ul class="menu dropdown-menu" style="width: auto !important; position: absolute !important; z-index: 9999 !important;">
                             ${dropdownItems.join('')}
                         </ul>
                     </li>
@@ -1785,6 +2256,7 @@
             // Event delegation for optimization
             worksContainer.addEventListener('click', async (event) => {
                 if (event.target.matches('a.work_quicktag_btn')) {
+                    event.preventDefault();
                     const targetStatusTag = event.target.dataset.statusTag;
                     const workId = event.target.dataset.workId;
                     const storageKey = event.target.dataset.statusName;
@@ -1792,38 +2264,241 @@
 
                     event.target.innerHTML = settings.loadingLabel;
 
-                    // Get request to retrieve work bookmark data
-                    const bookmarkData = await this.getRemoteBookmarkData(event.target);
-                    const authenticityToken = this.requestManager.getAuthenticityToken();
+                    // Detect if this button is inside a series bookmark blurb (class like "series-3279598")
+                    const blurb = event.target.closest('li.bookmark.blurb');
+                    const seriesMatch = blurb?.className.match(/\bseries-(\d+)\b/);
 
-                    // Use case-insensitive comparison to check if tag exists
-                    const tagExists = bookmarkData.bookmarkTags.some(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+                    if (seriesMatch) {
+                        // Series bookmark on bookmark listing page — use series endpoint
+                        const seriesId = seriesMatch[1];
+                        const entityId = `series_${seriesId}`;
+                        const authenticityToken = this.requestManager.getAuthenticityToken();
+                        let tagExists = false;
 
-                    // Fill the contents of bookmark note if enabled and note is not already there, only on adding tags
-                    if (settings.prefillBookmarkNote && !bookmarkData.notes.includes("ft_bookmark_note") && !tagExists) {
-                        let ficDetails = this.userNotesManager.getFicDetails(bookmarkData.workId, false);
-                        bookmarkData.notes += fillBookmarkNoteTemplate(settings.bookmarkNoteTemplate, ficDetails)
+                        try {
+                            const bookmarkData = await this.getRemoteSeriesBookmarkData(seriesId);
+                            const storedIds = this.storageManager.getIdsFromCategory(storageKey);
+                            tagExists = storedIds.includes(entityId) ||
+                                bookmarkData.bookmarkTags.some(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+
+                            if (tagExists) {
+                                const tagIndex = bookmarkData.bookmarkTags.findIndex(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+                                if (tagIndex !== -1) bookmarkData.bookmarkTags.splice(tagIndex, 1);
+                                this.storageManager.removeIdFromCategory(storageKey, entityId);
+                                if (this.remoteSyncManager) this.remoteSyncManager.addPendingStatusChange('remove', storageKey, entityId);
+                            } else {
+                                bookmarkData.bookmarkTags.push(targetStatusTag);
+                                this.storageManager.addIdToCategory(storageKey, entityId);
+                                if (this.remoteSyncManager) this.remoteSyncManager.addPendingStatusChange('add', storageKey, entityId);
+                            }
+
+                            // Strip auto-injected "Series" tag and any stale "Series" collection before empty check
+                            const seriesTagIdx = bookmarkData.bookmarkTags.findIndex(t => t.toLowerCase() === 'series');
+                            if (seriesTagIdx !== -1) bookmarkData.bookmarkTags.splice(seriesTagIdx, 1);
+                            const seriesColIdx = bookmarkData.collections.findIndex(c => c.toLowerCase() === 'series');
+                            if (seriesColIdx !== -1) bookmarkData.collections.splice(seriesColIdx, 1);
+
+                            if (bookmarkData.hasExistingBookmark) {
+                                const hasNoData = bookmarkData.notes === '' && bookmarkData.bookmarkTags.length === 0 && bookmarkData.collections.length === 0;
+                                if (settings.deleteEmptyBookmarks && hasNoData) {
+                                    await this.requestManager.deleteBookmark(bookmarkData.bookmarkId, authenticityToken);
+                                    bookmarkData.hasExistingBookmark = false;
+                                    bookmarkData.bookmarkId = null;
+                                } else {
+                                    // Ensure "Series" tag is always present on kept series bookmarks
+                                    if (!bookmarkData.bookmarkTags.some(t => t.toLowerCase() === 'series')) {
+                                        bookmarkData.bookmarkTags.push('Series');
+                                    }
+                                    bookmarkData.isPrivate = settings.newBookmarksPrivate;
+                                    bookmarkData.isRec = settings.newBookmarksRec;
+                                    await this.requestManager.updateBookmark(bookmarkData.bookmarkId, authenticityToken, bookmarkData);
+                                }
+                            } else {
+                                bookmarkData.isPrivate = settings.newBookmarksPrivate;
+                                bookmarkData.isRec = settings.newBookmarksRec;
+                                // Ensure "Series" tag is always present on new series bookmarks
+                                if (!bookmarkData.bookmarkTags.some(t => t.toLowerCase() === 'series')) {
+                                    bookmarkData.bookmarkTags.push('Series');
+                                }
+                                const newBookmarkId = await this.requestManager.createSeriesBookmark(seriesId, authenticityToken, bookmarkData);
+                                bookmarkData.hasExistingBookmark = true;
+                                bookmarkData.bookmarkId = newBookmarkId;
+                                DEBUG && console.log(`[FicTracker] Created series bookmark ID: ${newBookmarkId}`);
+                            }
+
+                            this.loadStoredIds();
+                            this.highlightWorkStatus(blurb, entityId);
+                            event.target.innerHTML = tagExists ?
+                                statusSettings.positiveLabel :
+                                statusSettings.negativeLabel;
+                        } catch (error) {
+                            console.error(`[FicTracker] Error during series bookmark operation on bookmarks page:`, error);
+                            event.target.innerHTML = statusSettings.positiveLabel;
+                        }
+                    } else {
+                        // Standard work bookmark
+                        const bookmarkData = await this.getRemoteBookmarkData(event.target);
+                        const authenticityToken = this.requestManager.getAuthenticityToken();
+                        // Use case-insensitive comparison to check if tag exists
+                        const tagExists = bookmarkData.bookmarkTags.some(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+
+                        try {
+                            // Send tag toggle request and modify cached bookmark data
+                            this.bookmarkData = await this.bookmarkTagManager.processTagToggle(targetStatusTag, tagExists, bookmarkData, authenticityToken,
+                                storageKey, this.storageManager, this.requestManager, this.remoteSyncManager);
+
+                            // Handle both search page and bookmarks page cases for work retrieval
+                            const work = document.querySelector(`li#work_${workId}`) || document.querySelector(`li.work-${workId}`);
+                            // Update data from localStorage to properly highlight work
+                            this.loadStoredIds();
+                            this.highlightWorkStatus(work, workId);
+                            event.target.innerHTML = tagExists ?
+                                statusSettings.positiveLabel :
+                                statusSettings.negativeLabel;
+                        } catch (error) {
+                            console.error(`[FicTracker] Error during bookmark operation:`, error);
+                        }
                     }
 
-                    try {
-                        // Send tag toggle request and modify cached bookmark data
-                        this.bookmarkData = await this.bookmarkTagManager.processTagToggle(targetStatusTag, tagExists, bookmarkData, authenticityToken,
-                            storageKey, this.storageManager, this.requestManager, this.remoteSyncManager);
+                } else if (event.target.matches('a.series_quicktag_btn')) {
+                    event.preventDefault();
+                    const seriesId = event.target.dataset.seriesId;
+                    const entityId = event.target.dataset.entityId;
+                    const targetStatusTag = event.target.dataset.statusTag;
+                    const storageKey = event.target.dataset.statusName;
+                    const statusSettings = getStatusSettingsByStorageKey(storageKey);
 
-                        // Handle both search page and bookmarks page cases for work retrieval
-                        const work = document.querySelector(`li#work_${workId}`) || document.querySelector(`li.work-${workId}`);
-                        // Update data from localStorage to properly highlight work
-                        this.loadStoredIds();
-                        this.highlightWorkStatus(work, workId);
+                    event.target.innerHTML = settings.loadingLabel;
+
+                    const bookmarkData = this.getSeriesBookmarkDataFromPage(seriesId);
+                    const authenticityToken = this.requestManager.getAuthenticityToken();
+
+                    // Check stored status and bookmark tags
+                    const storedIds = this.storageManager.getIdsFromCategory(storageKey);
+                    const tagExists = storedIds.includes(entityId) ||
+                        bookmarkData.bookmarkTags.some(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+
+                    try {
+                        if (tagExists) {
+                            DEBUG && console.log(`[FicTracker] Removing series tag: ${targetStatusTag}`);
+                            const tagIndex = bookmarkData.bookmarkTags.findIndex(t => t.toLowerCase() === targetStatusTag.toLowerCase());
+                            if (tagIndex !== -1) bookmarkData.bookmarkTags.splice(tagIndex, 1);
+                            this.storageManager.removeIdFromCategory(storageKey, entityId);
+                            if (this.remoteSyncManager) {
+                                this.remoteSyncManager.addPendingStatusChange('remove', storageKey, entityId);
+                            }
+                        } else {
+                            DEBUG && console.log(`[FicTracker] Adding series tag: ${targetStatusTag}`);
+                            bookmarkData.bookmarkTags.push(targetStatusTag);
+                            this.storageManager.addIdToCategory(storageKey, entityId);
+                            if (this.remoteSyncManager) {
+                                this.remoteSyncManager.addPendingStatusChange('add', storageKey, entityId);
+                            }
+                        }
+
+                        // Strip auto-injected "Series" tag and any stale "Series" collection before empty check
+                        const seriesTagIdx = bookmarkData.bookmarkTags.findIndex(t => t.toLowerCase() === 'series');
+                        if (seriesTagIdx !== -1) bookmarkData.bookmarkTags.splice(seriesTagIdx, 1);
+                        const seriesColIdx = bookmarkData.collections.findIndex(c => c.toLowerCase() === 'series');
+                        if (seriesColIdx !== -1) bookmarkData.collections.splice(seriesColIdx, 1);
+
+                        if (bookmarkData.hasExistingBookmark) {
+                            const hasNoData = bookmarkData.notes === '' && bookmarkData.bookmarkTags.length === 0 && bookmarkData.collections.length === 0;
+                            if (settings.deleteEmptyBookmarks && hasNoData) {
+                                DEBUG && console.log(`[FicTracker] Deleting empty series bookmark ID: ${bookmarkData.bookmarkId}`);
+                                await this.requestManager.deleteBookmark(bookmarkData.bookmarkId, authenticityToken);
+                                // Reset form action so next click creates a fresh bookmark
+                                const form = document.querySelector('div#bookmark_form_placement form');
+                                if (form) form.setAttribute('action', `/series/${seriesId}/bookmarks`);
+                                bookmarkData.hasExistingBookmark = false;
+                                bookmarkData.bookmarkId = null;
+                            } else {
+                                // Ensure "Series" tag is always present on kept series bookmarks
+                                if (!bookmarkData.bookmarkTags.some(t => t.toLowerCase() === 'series')) {
+                                    bookmarkData.bookmarkTags.push('Series');
+                                }
+                                bookmarkData.isPrivate = settings.newBookmarksPrivate;
+                                bookmarkData.isRec = settings.newBookmarksRec;
+                                await this.requestManager.updateBookmark(bookmarkData.bookmarkId, authenticityToken, bookmarkData);
+                            }
+                        } else {
+                            bookmarkData.isPrivate = settings.newBookmarksPrivate;
+                            bookmarkData.isRec = settings.newBookmarksRec;
+                            // Ensure "Series" tag is always present on new series bookmarks
+                            if (!bookmarkData.bookmarkTags.some(t => t.toLowerCase() === 'series')) {
+                                bookmarkData.bookmarkTags.push('Series');
+                            }
+                            const newBookmarkId = await this.requestManager.createSeriesBookmark(seriesId, authenticityToken, bookmarkData);
+                            // Update form action so subsequent clicks treat this as an existing bookmark
+                            const form = document.querySelector('div#bookmark_form_placement form');
+                            if (form) form.setAttribute('action', `/bookmarks/${newBookmarkId}`);
+                            bookmarkData.hasExistingBookmark = true;
+                            bookmarkData.bookmarkId = newBookmarkId;
+                            DEBUG && console.log(`[FicTracker] Created series bookmark ID: ${newBookmarkId}`);
+                        }
+
+                        // Sync updated tag list back to the DOM form so subsequent clicks
+                        // read the correct current tags instead of stale initial values
+                        const tagStringInput = document.getElementById('bookmark_tag_string');
+                        if (tagStringInput) tagStringInput.value = bookmarkData.bookmarkTags.join(', ');
+
                         event.target.innerHTML = tagExists ?
                             statusSettings.positiveLabel :
                             statusSettings.negativeLabel;
                     } catch (error) {
-                        console.error(`[FicTracker] Error during bookmark operation:`, error);
+                        console.error(`[FicTracker] Error during series bookmark operation:`, error);
                     }
-
                 }
             })
+        }
+
+        // Inject a Change Status dropdown into the series page nav (series-show pages only)
+        addSeriesStatusButtons() {
+            const seriesMain = document.querySelector('div#main.series-show.region');
+            if (!seriesMain) return;
+
+            const seriesId = window.location.pathname.match(/\/series\/(\d+)/)?.[1];
+            if (!seriesId) return;
+
+            const entityId = `series_${seriesId}`;
+
+            const nav = seriesMain.querySelector('ul.navigation.actions[role="navigation"]');
+            if (!nav) return;
+
+            // Sync any status tags already on the bookmark into localStorage so initial labels are correct
+            const bookmarkData = this.getSeriesBookmarkDataFromPage(seriesId);
+            if (bookmarkData.hasExistingBookmark) {
+                // Bookmark exists — add any status tags found on it to localStorage
+                bookmarkData.bookmarkTags.forEach(tag => {
+                    const matchingStatus = settings.statuses.find(s => s.tag.toLowerCase() === tag.toLowerCase());
+                    if (matchingStatus) {
+                        this.storageManager.addIdToCategory(matchingStatus.storageKey, entityId);
+                        DEBUG && console.log(`[FicTracker] Synced series ${seriesId} to storage for status: ${matchingStatus.storageKey}`);
+                    }
+                });
+            } else {
+                // No bookmark — clear any stale status entries so labels are correct
+                settings.statuses.forEach(s => {
+                    this.storageManager.removeIdFromCategory(s.storageKey, entityId);
+                });
+                DEBUG && console.log(`[FicTracker] No series bookmark found, cleared stale storage for series_${seriesId}`);
+            }
+
+            settings.statuses
+                .filter(s => s.enabled)
+                .forEach(s => {
+                    const storedIds = this.storageManager.getIdsFromCategory(s.storageKey);
+                    const label = storedIds.includes(entityId) ? s.negativeLabel : s.positiveLabel;
+                    nav.insertAdjacentHTML('beforeend',
+                        `<li class="mark-as-read" id="series_${s.selector}"><a href="#" class="series_quicktag_btn" data-series-id="${seriesId}" data-entity-id="${entityId}" data-status-tag="${s.tag}" data-status-name="${s.storageKey}">${label}</a></li>`
+                    );
+                });
+        }
+
+        // Get series bookmark data from the current page document
+        getSeriesBookmarkDataFromPage(seriesId) {
+            const tagManager = new BookmarkTagManager(document);
+            return tagManager.getSeriesBookmarkData(seriesId);
         }
 
         // Add note functionality to the work
@@ -1869,6 +2544,26 @@
 
             } catch (error) {
                 DEBUG && console.error('[FicTracker] Error retrieving bookmark data:', error);
+            }
+        }
+
+        async getRemoteSeriesBookmarkData(seriesId) {
+            DEBUG && console.log(`[FicTracker] Quicktag status change, requesting series bookmark data seriesId=${seriesId}`);
+
+            try {
+                const data = await this.requestManager.sendRequest(`/series/${seriesId}`, null, null, 'GET');
+                const html = await data.text();
+                const tagManager = new BookmarkTagManager(html);
+                const bookmarkData = tagManager.getSeriesBookmarkData(seriesId);
+
+                DEBUG && console.log('[FicTracker] Series bookmark data parsed:');
+                DEBUG && console.table(bookmarkData);
+
+                return bookmarkData;
+
+            } catch (error) {
+                DEBUG && console.error('[FicTracker] Error retrieving series bookmark data:', error);
+                throw error;
             }
         }
 
@@ -2117,13 +2812,6 @@
                                 <input type="range" id="highlight_opacity" min="0" max="1" step="0.1" v-model="currentSettings.opacity">
                             </li>
                             <li>
-                                <label for="highlight_priority"
-                                    title="If multiple tags are active, the tag with higher priority overrides the others and controls the highlight.">
-                                    Highlight priority:
-                                    </label>
-                                <input type="number" id="highlight_priority" name="quantity" value="1" v-model="currentSettings.highlightPriority">
-                            </li>
-                            <li>
                                 <strong>Preview:</strong>
                                 <div :style="previewStyle" id="highlighting_preview">
                                     This is a preview box
@@ -2131,23 +2819,12 @@
                             </li>
                         </ul>
                     </details>
-                    <details id="notes_settings">
-                        <summary>Bookmark Notes Formatting</summary>
-                        <ul>
-                            <li>
-                                <label for="notes_content">Bookmark Note Formatting Preview:</label> <a target="_blank" href="https://archiveofourown.org/faq/formatting-content-on-ao3-with-html">[AO3 HTML Formatting Guide]</a>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                                    <textarea id="notes_content" v-model="ficTrackerSettings.bookmarkNoteTemplate"
-                                        style="height: 120px; resize: vertical;">
-                                    </textarea>
-                                    <div v-html="bookmarkNoteFormattingPreview" style="border: 1px solid #ccc; padding: 8px; min-height: 120px;"></div>
-                                </div>
-                            </li>
-                            <li>
-                                <small>Placeholders: {AUTHOR} {TITLE} {FANDOM} {PAIRING_TAGS} {CHARACTER_TAGS} {ADDITIONAL_TAGS} {SUMMARY} {SERIES} {SERIES_SUMMARY} {WORK_ID}</small>
-                            </li>
-                        </ul>
-                    </details>
+                    <ul>
+                        <li>
+                            <label for="change_status_label">"Change Status" dropdown label:</label>
+                            <input type="text" id="change_status_label" v-model="ficTrackerSettings.changeStatusLabel" placeholder="✿ Change Status ▼">
+                        </li>
+                    </ul>
                 </section>
                 <br>
                 <section>
@@ -2156,16 +2833,9 @@
                     <ul>
                         <!-- Core Functionality -->
                         <li>
-                            <input type="checkbox" id="toggle_bookmarkNoteFormatting" v-model="ficTrackerSettings.prefillBookmarkNote">
-                            <label for="toggle_bookmarkNoteFormatting"
-                                title="Automatically prefills the AO3 bookmark note with work details like title, author, fandom and summary when you bookmark a work. Formatting can be customized from 'Bookmark Notes Formatting' menu">
-                                Prefill bookmark note with work details
-                            </label>
-                        </li>
-                        <li>
                             <input type="checkbox" id="toggle_displayUserNotes" v-model="ficTrackerSettings.displayUserNotes">
                             <label for="toggle_displayUserNotes"
-                                title="Shows the 'Add note' button on each work card and your saved notes as collapsible sections">
+                                title="Shows the "Add note" button on each work card and your saved notes as collapsible sections">
                                 Display "Add Note" button and your notes in work cards
                             </label>
                         </li>
@@ -2181,6 +2851,13 @@
                             <label for="toggle_displayOnPageSorting"
                                 title="On-page sort lets you dynamically sort the works currently loaded on page. Note: it only sorts the works visible on this page, not across multiple pages">
                                 Display on-page sort conrols
+                            </label>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="toggle_enableMarkAsReadButton" v-model="ficTrackerSettings.enableMarkAsReadButton">
+                            <label for="toggle_enableMarkAsReadButton"
+                                title="Shows a 'Mark Chapter' button on chapter pages that prepends 'Last Read: Ch. X' to your custom notes">
+                                Display "Mark Chapter" button
                             </label>
                         </li>
                         <li>
@@ -2215,6 +2892,10 @@
                         <li>
                             <input type="checkbox" id="hide_default_toread" v-model="ficTrackerSettings.hideDefaultToreadBtn">
                             <label for="hide_default_toread" title="Hides AO3's default 'Mark For Later' button to reduce clutter">Hide default Mark For Later button</label>
+                        </li>
+                        <li>
+                            <input type="checkbox" id="hide_default_subscribe" v-model="ficTrackerSettings.hideDefaultSubscribeBtn">
+                            <label for="hide_default_subscribe" title="Hides AO3's default 'Subscribe' button to reduce clutter">Hide default Subscribe button</label>
                         </li>
                         <li>
                             <input type="checkbox" id="toggle_displayBottomActionButtons" v-model="ficTrackerSettings.displayBottomActionButtons">
@@ -2401,7 +3082,7 @@
 
                 get canDeleteSelected() {
                     // Prevent deleting built-ins
-                    const builtInKeys = ['FT_finished', 'FT_favorites', 'FT_toread', 'FT_disliked'];
+                    const builtInKeys = ['FT_finished', 'FT_favorites', 'FT_subscribed', 'FT_toread', 'FT_disliked'];
                     return !builtInKeys.includes(this.ficTrackerSettings.statuses[this.selectedStatus].storageKey);
                 },
 
@@ -2419,30 +3100,6 @@
                             'none',
                         opacity: s.opacity
                     };
-                },
-
-                get bookmarkNoteFormattingPreview() {
-                    const PLACEHOLDERS = {
-                        '{AUTHOR}': '<a href="#">SampleAuthor</a>',
-                        '{TITLE}': '<a href="#">Work Title</a>',
-                        '{FANDOM}': '<a href="#">Fandom You\'re Obsessed With</a>',
-                        '{PAIRING_TAGS}': '<a href="#">Character A/Character B</a>',
-                        '{CHARACTER_TAGS}': '<li><a href="#">Character A</a></li><li><a href="#">Character B</a></li>',
-                        '{ADDITIONAL_TAGS}': '<li><a href="#">Slow Burn</a></li><li><a href="#">Romance</a></li>',
-                        '{SUMMARY}': 'They hate each other. Except they don\'t. This is everyone\'s problem now.',
-                        '{SERIES}': 'Part # of the <a href="#">series that should have been one-shot</a>',
-                        '{WORK_ID}': '1234567',
-                        '{SERIES_SUMMARY}': 'This is series summary'
-                    };
-
-                    const text = this.ficTrackerSettings.bookmarkNoteTemplate;
-                    if (!text) return '<em style="opacity:0.5">Start typing to see preview…</em>';
-
-                    let out = text;
-                    for (const [placeholder, value] of Object.entries(PLACEHOLDERS)) {
-                        out = out.replaceAll(placeholder, value);
-                    }
-                    return out;
                 },
 
                 get lastSyncTimeFormatted() {
@@ -2506,8 +3163,7 @@
                         borderSize: 2,
                         opacity: 1,
                         borderOpacity: 255,
-                        hide: false,
-                        highlightPriority: 1
+                        hide: false
                     };
                     this.ficTrackerSettings.statuses.push(newStatus);
                     this.selectedStatus = this.ficTrackerSettings.statuses.length - 1;
@@ -2532,6 +3188,7 @@
 
                 saveSettings() {
                     localStorage.setItem('FT_settings', JSON.stringify(this.ficTrackerSettings));
+                    localStorage.setItem('FT_statusesConfig', JSON.stringify(this.ficTrackerSettings.statuses || []));
                     DEBUG && console.log('[FicTracker] Settings saved.');
                 },
 
@@ -2557,6 +3214,8 @@
                     this.ficTrackerSettings.syncDBInitialized = false;
                     this.ficTrackerSettings.syncEnabled = false;
                     localStorage.removeItem('FT_lastSync');
+                    localStorage.removeItem('FT_pendingChanges');
+                    localStorage.removeItem('FT_lastSyncedStatusesConfig');
                     this.saveSettings();
 
                     // Clear any existing status messages
@@ -2575,6 +3234,9 @@
                     this.sheetConnectionStatus = {};
 
                     try {
+                        // Persist any in-panel status edits before syncing
+                        this.saveSettings();
+
                         // Attempt to perform the sync and update the last successful sync timestamp
                         await this.performSync();
                         this.updateLastSyncTime();
@@ -2712,22 +3374,192 @@
                     this.sheetConnectionStatus = {};
                     this.syncFeedback = {};
 
-                    // Gather current local storage data to be uploaded to Google Sheets
-                    const initData = {
-                        FT_userNotes: JSON.stringify(JSON.parse(localStorage.getItem('FT_userNotes') || '{}')),
-                    };
-                    try {
-                        const allStatuses = this.ficTrackerSettings.statuses;
-                        for (const s of allStatuses) {
-                            initData[s.storageKey] = localStorage.getItem(s.storageKey) || '';
+                    const STATUS_CONFIG_KEY = 'FT_statusesConfig';
+                    const syncedKeys = this.ficTrackerSettings.statuses.map(s => s.storageKey);
+                    syncedKeys.push(STATUS_CONFIG_KEY);
+                    syncedKeys.push(this.ficTrackerSettings.kudosStorageKey);
+
+                    const hasMeaningfulLocalData = () => {
+                        let hasStatusData = false;
+                        for (const key of syncedKeys) {
+                            if ((localStorage.getItem(key) || '').trim().length > 0) {
+                                hasStatusData = true;
+                                break;
+                            }
                         }
-                    } catch (e) {
-                        DEBUG && console.warn('[FicTracker] Failed to build initData for dynamic statuses:', e);
-                    }
 
-                    DEBUG && console.log('[FicTracker] Initializing Google Sheets with data:', initData);
+                        let hasNotes = false;
+                        try {
+                            const notesObj = JSON.parse(localStorage.getItem('FT_userNotes') || '{}');
+                            hasNotes = Object.keys(notesObj).length > 0;
+                        } catch (e) {
+                            hasNotes = false;
+                        }
 
-                    // Send initialization request to Google Sheets endpoint
+                        return hasStatusData || hasNotes;
+                    };
+
+                    const updateLocalFromServer = (responseData) => {
+                        const statusData = responseData?.status_data || {};
+
+                        let configApplied = false;
+                        if (Object.prototype.hasOwnProperty.call(statusData, STATUS_CONFIG_KEY)) {
+                            try {
+                                const parsedStatuses = JSON.parse(statusData[STATUS_CONFIG_KEY] || '[]');
+                                const validStatuses = Array.isArray(parsedStatuses)
+                                    ? parsedStatuses.filter(s => s && typeof s.storageKey === 'string' && typeof s.tag === 'string')
+                                    : [];
+
+                                if (validStatuses.length > 0) {
+                                    const existingByStorageKey = new Map((this.ficTrackerSettings.statuses || []).map(status => [status.storageKey, status]));
+                                    const syncedStatuses = validStatuses.map(status => {
+                                        const existing = existingByStorageKey.get(status.storageKey) || {};
+                                        return { ...existing, ...status };
+                                    });
+
+                                    this.ficTrackerSettings.statuses = syncedStatuses;
+                                    settings.statuses = syncedStatuses;
+                                    localStorage.setItem('FT_settings', JSON.stringify(this.ficTrackerSettings));
+                                    localStorage.setItem(STATUS_CONFIG_KEY, JSON.stringify(syncedStatuses));
+                                    DEBUG && console.log('[FicTracker] Initialize pull applied remote status config. Replaced statuses count:', syncedStatuses.length);
+                                    configApplied = true;
+                                }
+                            } catch (e) {
+                                DEBUG && console.warn('[FicTracker] Failed to apply status config from remote initialize pull:', e);
+                            }
+                        }
+
+                        if (!configApplied) {
+                            const inferredStatuses = inferStatusesFromStatusData(statusData, this.ficTrackerSettings.statuses);
+                            if (inferredStatuses.length > 0) {
+                                const mergedStatuses = mergeStatusesByStorageKey(this.ficTrackerSettings.statuses, inferredStatuses);
+                                this.ficTrackerSettings.statuses = mergedStatuses;
+                                settings.statuses = mergedStatuses;
+                                localStorage.setItem('FT_settings', JSON.stringify(this.ficTrackerSettings));
+                                localStorage.setItem(STATUS_CONFIG_KEY, JSON.stringify(mergedStatuses));
+                                DEBUG && console.log('[FicTracker] Inferred status config from server keys during init:', inferredStatuses.map(s => s.storageKey));
+                            }
+                        }
+
+                        const effectiveSyncedKeys = this.ficTrackerSettings.statuses.map(s => s.storageKey);
+                        effectiveSyncedKeys.push(STATUS_CONFIG_KEY);
+                        effectiveSyncedKeys.push(this.ficTrackerSettings.kudosStorageKey);
+
+                        for (const key of effectiveSyncedKeys) {
+                            if (Object.prototype.hasOwnProperty.call(statusData, key)) {
+                                localStorage.setItem(key, statusData[key] || '');
+                            }
+                        }
+
+                        if (responseData && Object.prototype.hasOwnProperty.call(responseData, 'notes')) {
+                            localStorage.setItem('FT_userNotes', JSON.stringify(responseData.notes || {}));
+                        }
+                    };
+
+                    const completeInitialization = (message) => {
+                        this.sheetConnectionStatus = {
+                            success: true,
+                            message: message || 'Google Sheet initialized successfully!'
+                        };
+                        this.ficTrackerSettings.syncDBInitialized = true;
+
+                        if (this.ficTrackerSettings.syncEnabled && !this.remoteSyncManager) {
+                            this.initRemoteSyncManager();
+                        }
+
+                        localStorage.setItem('FT_lastSync', Date.now().toString());
+                        this.saveSettings();
+                        this.updateLastSyncTime();
+
+                        setTimeout(() => {
+                            if (this.sheetConnectionStatus && this.sheetConnectionStatus.success) {
+                                this.sheetConnectionStatus = {};
+                            }
+                        }, 7000);
+                    };
+
+                    const sendInitializeRequest = () => {
+                        // Safety guard: don't initialize from an empty browser if we couldn't verify remote DB state.
+                        if (!hasMeaningfulLocalData()) {
+                            this.loadingStates.initialize = false;
+                            this.sheetConnectionStatus = {
+                                success: false,
+                                message: 'Initialization canceled to prevent overwrite. This browser has no local data yet; use Sync Now to pull existing data first.'
+                            };
+                            return;
+                        }
+
+                        // Gather current local storage data to be uploaded to Google Sheets
+                        const UI_CONFIG_KEY = 'FT_uiConfig';
+                        const initData = {
+                            FT_userNotes: JSON.stringify(JSON.parse(localStorage.getItem('FT_userNotes') || '{}')),
+                            [STATUS_CONFIG_KEY]: localStorage.getItem(STATUS_CONFIG_KEY) || JSON.stringify(this.ficTrackerSettings.statuses || []),
+                            [UI_CONFIG_KEY]: localStorage.getItem(UI_CONFIG_KEY) || JSON.stringify({ changeStatusLabel: this.ficTrackerSettings.changeStatusLabel || '✿ Change Status ▼' }),
+                            [this.ficTrackerSettings.kudosStorageKey]: localStorage.getItem(this.ficTrackerSettings.kudosStorageKey) || ''
+                        };
+                        try {
+                            const allStatuses = this.ficTrackerSettings.statuses;
+                            for (const s of allStatuses) {
+                                initData[s.storageKey] = localStorage.getItem(s.storageKey) || '';
+                            }
+                        } catch (e) {
+                            DEBUG && console.warn('[FicTracker] Failed to build initData for dynamic statuses:', e);
+                        }
+
+                        DEBUG && console.log('[FicTracker] Initializing Google Sheets with data:', initData);
+
+                        // Send initialization request to Google Sheets endpoint
+                        GM_xmlhttpRequest({
+                            method: 'POST',
+                            url: url,
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            data: JSON.stringify({
+                                action: 'initialize',
+                                initData
+                            }),
+                            onload: (response) => {
+                                this.loadingStates.initialize = false;
+
+                                try {
+                                    // Parse and handle successful initialization response
+                                    const data = JSON.parse(response.responseText);
+                                    DEBUG && console.log('[FicTracker] DB Initialization response data:', data);
+
+                                    if (data.status === 'success') {
+                                        completeInitialization(data.data?.message || 'Google Sheet initialized successfully!');
+                                    } else {
+                                        // Handle error response from server
+                                        this.sheetConnectionStatus = {
+                                            success: false,
+                                            message: data.message || 'Initialization failed'
+                                        };
+                                    }
+                                    // Catch JSON parsing errors and log them
+                                } catch (e) {
+                                    DEBUG && console.error('[FicTracker] Invalid JSON response during initialization:', response.responseText);
+
+                                    this.sheetConnectionStatus = {
+                                        success: false,
+                                        message: 'Invalid response from server'
+                                    };
+                                }
+                            },
+                            // Handle connection errors like timeouts or offline state
+                            onerror: (err) => {
+                                DEBUG && console.error('[FicTracker] Network error during initialization:', err);
+
+                                this.loadingStates.initialize = false;
+                                this.sheetConnectionStatus = {
+                                    success: false,
+                                    message: 'Network error - check your connection'
+                                };
+                            }
+                        });
+                    };
+
+                    // First try pulling existing remote data. If present, connect without re-initializing.
                     GM_xmlhttpRequest({
                         method: 'POST',
                         url: url,
@@ -2735,66 +3567,35 @@
                             'Content-Type': 'application/json'
                         },
                         data: JSON.stringify({
-                            action: 'initialize',
-                            initData
+                            action: 'sync',
+                            queue: {
+                                operations: [],
+                                notes: []
+                            }
                         }),
                         onload: (response) => {
-                            this.loadingStates.initialize = false;
-
                             try {
-                                // Parse and handle successful initialization response
                                 const data = JSON.parse(response.responseText);
-                                DEBUG && console.log('[FicTracker] DB Initialization response data:', data);
+                                DEBUG && console.log('[FicTracker] Pre-initialize sync probe response:', data);
 
-                                if (data.status === 'success') {
-                                    // Store sync initialization status, timestamp, and update UI
-                                    this.sheetConnectionStatus = {
-                                        success: true,
-                                        message: data.data?.message || 'Google Sheet initialized successfully!'
-                                    };
-                                    this.ficTrackerSettings.syncDBInitialized = true;
+                                const probeSucceeded = data?.success === true || data?.status === 'success';
+                                const hasRemotePayload = !!data?.status_data || Object.prototype.hasOwnProperty.call(data || {}, 'notes');
 
-                                    if (this.ficTrackerSettings.syncEnabled && !this.remoteSyncManager) {
-                                        this.initRemoteSyncManager();
-                                    }
-
-                                    localStorage.setItem('FT_lastSync', Date.now().toString());
-                                    this.saveSettings();
-                                    this.updateLastSyncTime();
-
-                                    // Auto-clear success message after 7 seconds
-                                    setTimeout(() => {
-                                        if (this.sheetConnectionStatus && this.sheetConnectionStatus.success) {
-                                            this.sheetConnectionStatus = {};
-                                        }
-                                    }, 7000);
-
+                                if (probeSucceeded && hasRemotePayload) {
+                                    updateLocalFromServer(data);
+                                    this.loadingStates.initialize = false;
+                                    completeInitialization('Connected to existing Google Sheet and pulled remote data.');
                                 } else {
-                                    // Handle error response from server
-                                    this.sheetConnectionStatus = {
-                                        success: false,
-                                        message: data.message || 'Initialization failed'
-                                    };
+                                    sendInitializeRequest();
                                 }
-                                // Catch JSON parsing errors and log them
                             } catch (e) {
-                                DEBUG && console.error('[FicTracker] Invalid JSON response during initialization:', response.responseText);
-
-                                this.sheetConnectionStatus = {
-                                    success: false,
-                                    message: 'Invalid response from server'
-                                };
+                                DEBUG && console.warn('[FicTracker] Pre-initialize sync probe was not usable, falling back to initialize:', e);
+                                sendInitializeRequest();
                             }
                         },
-                        // Handle connection errors like timeouts or offline state
                         onerror: (err) => {
-                            DEBUG && console.error('[FicTracker] Network error during initialization:', err);
-
-                            this.loadingStates.initialize = false;
-                            this.sheetConnectionStatus = {
-                                success: false,
-                                message: 'Network error - check your connection'
-                            };
+                            DEBUG && console.warn('[FicTracker] Pre-initialize sync probe failed, falling back to initialize:', err);
+                            sendInitializeRequest();
                         }
                     });
                 },
@@ -2913,6 +3714,7 @@
                     const importedStatuses = JSON.parse(importedData.FT_statusesConfig);
                     this.settings.statuses = importedStatuses;
                     localStorage.setItem('FT_settings', JSON.stringify(this.settings));
+                    localStorage.setItem('FT_statusesConfig', JSON.stringify(importedStatuses));
                 } catch (err) {
                     DEBUG && console.error('[FicTracker] Error importing status configuration:', err);
                 }
@@ -3014,8 +3816,9 @@
             // this.settings.statuses = this.settings.statuses.filter(status => status.enabled !== false);
 
             this.initStyles();
-            this.addDropdownOptions();
+            this.setupReliableDropdownInjection();
             this.setupURLHandlers();
+            this.setupCrossTabKudosSync();
 
             // Only initialize storages on global scope if My Notes manager enabled
             if(settings.displayMyNotesButton) {
@@ -3026,6 +3829,61 @@
                 this.userNotesManager = new CustomUserNotesManager(this.storageManager, this.remoteSyncManager);
                 this.setupMyNotesButton();
             }
+        }
+
+        setupReliableDropdownInjection() {
+            let attempts = 0;
+            const maxAttempts = 20;
+            let retryTimer = null;
+            let finished = false;
+
+            const stop = () => {
+                if (finished) return;
+                finished = true;
+
+                if (retryTimer) {
+                    clearInterval(retryTimer);
+                    retryTimer = null;
+                }
+
+                observer.disconnect();
+                window.removeEventListener('pageshow', tryInject);
+                document.removeEventListener('visibilitychange', handleVisibilityChange);
+            };
+
+            const tryInject = () => {
+                if (finished) return;
+
+                attempts++;
+                const injected = this.addDropdownOptions();
+
+                if (injected || attempts >= maxAttempts) {
+                    stop();
+                }
+            };
+
+            const handleVisibilityChange = () => {
+                if (document.visibilityState === 'visible') {
+                    tryInject();
+                }
+            };
+
+            const observer = new MutationObserver(() => {
+                if (!finished && attempts < maxAttempts) {
+                    tryInject();
+                }
+            });
+
+            observer.observe(document.documentElement, {
+                childList: true,
+                subtree: true
+            });
+
+            retryTimer = setInterval(tryInject, 500);
+            window.addEventListener('pageshow', tryInject);
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+
+            tryInject();
         }
 
         // Method to merge settings / store the default ones
@@ -3041,6 +3899,18 @@
                 // Check if the version matches the current version from Tampermonkey metadata
                 const currentVersion = GM_info.script.version;
                 if (!storedSettings.version || storedSettings.version !== currentVersion) {
+                    // Merge statuses intelligently - add new default statuses that don't exist
+                    if (storedSettings.statuses && settings.statuses) {
+                        const existingStorageKeys = new Set(storedSettings.statuses.map(s => s.storageKey));
+                        settings.statuses.forEach(defaultStatus => {
+                            if (!existingStorageKeys.has(defaultStatus.storageKey)) {
+                                // New status found in defaults, add it to stored settings
+                                storedSettings.statuses.push(defaultStatus);
+                                console.log(`[FicTracker] Added new status: ${defaultStatus.tag}`);
+                            }
+                        });
+                    }
+
                     // If versions don't match, merge and update the version
                     storedSettings = _.defaultsDeep(storedSettings, settings);
 
@@ -3065,6 +3935,7 @@
             if (savedSettings) {
                 try {
                     settings = JSON.parse(savedSettings);
+                    localStorage.setItem('FT_statusesConfig', JSON.stringify(settings.statuses || []));
                     DEBUG = settings.debug;
                     DEBUG && console.log(`[FicTracker] Settings loaded successfully:`, savedSettings);
                 } catch (error) {
@@ -3104,27 +3975,49 @@
                     display: block;
                 }
 
+                /* ensure dropdown menu is not clipped */
+                .bookmarks-index .bookmark.index {
+                    overflow: visible !important;
+                }
+
         `);
         }
 
         // Add new dropdown options for each status to the user menu
         addDropdownOptions() {
             const userMenu = document.querySelector('ul.menu.dropdown-menu');
-            const username = userMenu?.previousElementSibling?.getAttribute('href')?.split('/').pop() ?? '';
+            if (!userMenu) {
+                DEBUG && console.warn('[FicTracker] User menu not found yet.');
+                return false;
+            }
+
+            const profileLink =
+                userMenu.previousElementSibling?.getAttribute('href') ||
+                document.querySelector('#header a[href^="/users/"]')?.getAttribute('href') ||
+                '';
+            const username = profileLink.split('/').filter(Boolean).pop() || '';
 
             if (username) {
-                // Loop through each status and add corresponding dropdown options
+                // Remove previously added FicTracker dropdown links to prevent duplicates
+                const existingLinks = userMenu.querySelectorAll('a[data-ft-dropdown]');
+                existingLinks.forEach(link => link.parentElement.remove());
+
+                // Track which tags have been added to avoid duplicates
+                const addedTags = new Set();
                 this.settings.statuses.forEach((status) => {
-                    if (status.displayInDropdown) {
+                    if (status.displayInDropdown && !addedTags.has(status.tag)) {
                         userMenu.insertAdjacentHTML(
                             'beforeend',
-                            `<li><a href="https://archiveofourown.org/bookmarks?bookmark_search%5Bother_bookmark_tag_names%5D=${status.tag}&user_id=${username}">${status.dropdownLabel}</a></li>`
+                            `<li><a href="https://archiveofourown.org/bookmarks?bookmark_search%5Bother_bookmark_tag_names%5D=${status.tag}&user_id=${username}" data-ft-dropdown="1">${status.dropdownLabel}</a></li>`
                         );
+                        addedTags.add(status.tag);
                     }
                 });
                 DEBUG && console.log('[FicTracker] Successfully added dropdown options!');
+                return true;
             } else {
-                DEBUG && console.warn('[FicTracker] Cannot parse the username!');
+                DEBUG && console.warn('[FicTracker] Cannot parse the username yet.');
+                return false;
             }
         }
 
@@ -3167,6 +4060,30 @@
         }
 
 
+        // Setup cross-tab kudos synchronization
+        setupCrossTabKudosSync() {
+            // Listen for localStorage changes from other tabs/windows
+            window.addEventListener('storage', (e) => {
+                // Only react to kudos storage changes
+                if (e.key === settings.kudosStorageKey) {
+                    const kudosButton = document.getElementById('kudo_submit');
+                    const workIdInput = document.getElementById('kudo_commentable_id');
+
+                    // If we're on a work page with a kudos button
+                    if (kudosButton && workIdInput) {
+                        const workId = workIdInput.value;
+                        const kudosGiven = e.newValue ? e.newValue.split(',').filter(id => id) : [];
+
+                        // Hide button if kudos was given in another tab
+                        if (kudosGiven.includes(workId)) {
+                            kudosButton.style.display = 'none';
+                            DEBUG && console.info('[FicTracker] Kudos button hidden due to cross-tab update');
+                        }
+                    }
+                }
+            });
+        }
+
         // Setup URL handlers for different pages
         setupURLHandlers() {
             const urlHandler = new URLHandler();
@@ -3196,7 +4113,7 @@
                     /\/works\?commit=Sort/,
                     /\/works\?work_search/,
                     /\/tags\/.*\/works/,
-                    /\/users\/.*\/readings/
+                    /\/users\/[^/]+(\/dashboard)?(\?.*)?$/
                 ],
                 () => {
                     const worksListHandler = new WorksListHandler();

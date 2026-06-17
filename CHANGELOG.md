@@ -2,6 +2,12 @@
 
 All notable changes to this fork are documented here.
 
+## [1.6.7.4.1] - 2026-06-17
+- Rebased onto upstream `1.6.7.4`. Merged in new features from the original [AO3 FicTracker](https://greasyfork.org/en/scripts/513435-ao3-fictracker):
+  - Added "Prefill bookmark note with work details" — auto-fills the AO3 bookmark note with a customizable template (title, author, fandom, pairings, summary, series) when adding a status tag, with a live preview in the settings panel
+  - Added `highlightPriority` per status — when a work matches multiple tracked statuses, the highest-priority one's highlight/border now wins instead of layering unpredictably
+- Fork-only fix: resolved a sync race condition where giving kudos (or any status/note change) while a Google Sheets sync was in flight could be silently lost — pending changes are now tracked individually and only the entries actually sent are cleared, instead of wiping the whole queue on every successful sync
+
 ## [1.6.6.4.8] - 2026-05-12
 - Fork changes:
   - Added full Change Status support for series — status buttons on series pages and bookmarks listing page; creates/updates/deletes series bookmarks via `/series/{id}/bookmarks`
