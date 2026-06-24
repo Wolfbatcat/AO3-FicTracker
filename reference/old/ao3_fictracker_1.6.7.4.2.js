@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         AO3 FicTracker - BlackBatCat's Version
 // @author       infiniMotis, BlackBatCat
-// @version      1.6.7.4.3
+// @version      1.6.7.4.2
 // @namespace    https://github.com/Wolfbatcat/AO3-FicTracker
 // @description  Customized fork with chapter tracking, kudos button hiding, and Rose Piné-inspired theme. Tracks favorite, finished, to-read and disliked fanfics on AO3 with sync across devices.
 // @license      GNU GPLv3
@@ -11,6 +11,7 @@
 // @run-at       document-end
 // @require      https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js
 // @supportURL   https://github.com/Wolfbatcat/AO3-FicTracker/issues
+// @downloadURL none
 // ==/UserScript==
 
 // Description:
@@ -20,17 +21,13 @@
 // and highlight tracked works on listing pages.
 //
 // Key Features:
-// **Status Tracking:** Mark fics with a custom status and highlight them on listing pages.
+// **Status Tracking:** Mark fics as Reading, Subscribed, To-Read, Finished, or Dropped.
 // **Custom Tags & Notes:** Add personal tags and notes to any fic for easy organization.
-// **Data Synchronization:** Tracking data is linked to your AO3 account and syncs across devices.
-// **Google Sheets Storage Sync:** Syncs highlights, notes, and status data across multiple devices.
-// **Quick Access:** Use the dropdown menu in the top right corner of AO3 to access your tracked lists.
-// **Optimized Performance:** Features only run on relevant pages for quick and efficient performance.
-//
-// Fork-Only Additions:
 // **Chapter Tracking:** On chapter pages, use the "Mark Current Chapter" button to save your reading progress to your note automatically.
-// **Kudos Sync:** Giving kudos hides the kudos button across all your devices, with cross-compatibility for the "AO3: No Re-Kudos" script.
-// **Series Support:** Change Status also works on series, not just individual works.
+// **Kudos Sync:** Giving kudos hides the kudos button across all your devices via Google Sheets sync.
+// **Data Synchronization:** Tracking data is linked to your AO3 account and syncs across devices.
+// **Google Sheets Storage Sync:** Syncs highlights, notes, and kudos status across multiple devices.
+// **Optimized Performance:** Features only run on relevant pages for quick and efficient performance.
 //
 // Usage Instructions:
 // 1. **Tracking Fics:** On a fic's page, click the status button. On listing pages, use the dropdown in the bottom right corner of each work.
@@ -67,7 +64,6 @@
   // Default script settings
   let settings = {
     version: GM_info.script.version,
-    // [TWEAK: statuses] renamed/recolored/reordered; added Subscribed
     statuses: [
       {
         tag: "Reading",
@@ -157,7 +153,7 @@
     ],
     loadingLabel: "⏳Loading...",
     hideDefaultToreadBtn: true,
-    hideDefaultSubscribeBtn: true, // [FORK: subscribe-btn] new setting, on by default
+    hideDefaultSubscribeBtn: true,
     newBookmarksPrivate: true,
     newBookmarksRec: false,
     lastExportTimestamp: null,
@@ -170,15 +166,15 @@
     syncInterval: 60,
     syncEnabled: false,
     syncDBInitialized: false,
-    syncWidgetEnabled: false, // [TWEAK: defaults] off by default
+    syncWidgetEnabled: false,
     syncWidgetOpacity: 0.5,
     exportStatusesConfig: true,
     collapseAndHideOnBookmarks: false,
-    displayMyNotesButton: false, // [TWEAK: defaults] off by default
-    displayOnPageSorting: false, // [TWEAK: defaults] off by default
-    enableMarkAsReadButton: true, // [FORK: chapter-tracking]
-    kudosStorageKey: "FT_kudosGiven", // [FORK: kudos]
-    changeStatusLabel: "✿ Change Status ▼", // [FORK: dropdown-label]
+    displayMyNotesButton: false,
+    displayOnPageSorting: false,
+    enableMarkAsReadButton: true,
+    kudosStorageKey: "FT_kudosGiven",
+    changeStatusLabel: "✿ Change Status ▼",
     prefillBookmarkNote: false,
     bookmarkNoteTemplate: DEFAULT_BOOKMARK_NOTE_FORMAT,
   };
@@ -191,14 +187,11 @@
     return settings.statuses.find((status) => status.storageKey === storageKey);
   }
 
-  // ==== [FORK] CUSTOM STATUS HELPERS ====
-  // Lets users add/delete custom status tags and syncs definitions across devices.
   const RESERVED_SYNC_KEYS = new Set([
     "FT_userNotes",
     "FT_statusesConfig",
     "FT_uiConfig",
     "FT_kudosGiven",
-    "FT_noReKudos",
   ]);
 
   function toTitleCaseWords(text) {
@@ -280,7 +273,6 @@
 
     return inferred;
   }
-  // ==== END: CUSTOM STATUS HELPERS ====
 
   // Utility function to check if current page is users own bookmarks page
   function isOwnBookmarksPage() {
@@ -385,13 +377,14 @@
             ((ownBookmarksPage && settings.collapseAndHideOnBookmarks) ||
               !ownBookmarksPage);
 
-          // [FIX: status-highlight] no longer strips the blurb's real border/shadow when borderSize is 0
           css += `
                         .${className} {
                             ${shouldHide ? "display: none !important;" : ""}
-                            ${hasBorder ? `border: ${border} !important;` : ""}
+                            ${hasBorder ? `border: ${border} !important;` : "border: none !important;"}
+                            border-radius: 0.75em !important;
                             padding: 15px !important;
-                            ${hasBorder ? `box-shadow: ${boxShadow} !important;` : ""}
+                            background-color: transparent !important;
+                            ${hasBorder ? `box-shadow: ${boxShadow} !important;` : "box-shadow: none !important;"}
                             transition: box-shadow 0.3s ease, opacity 0.3s ease !important;
                             opacity: ${opacity};
                         }
@@ -403,36 +396,6 @@
         });
 
       return css;
-    }
-
-    // [FORK: dropdown-style] keeps the toggle/menu from being painted by generic .actions rules
-    static generateQuickTagToggleStyles() {
-      return `
-                #header.region .ft-quicktag-toggle,
-                #header.region .ft-quicktag-toggle:is(:hover, :focus, :active) {
-                    background: transparent !important;
-                    background-color: transparent !important;
-                    background-image: none !important;
-                    border: 0 !important;
-                    box-shadow: none !important;
-                    outline: none !important;
-                    text-decoration: none !important;
-                    text-shadow: none !important;
-                    filter: none !important;
-                    transform: none !important;
-                    cursor: pointer !important;
-                    color: currentColor !important;
-                    font-weight: normal !important;
-                    margin: 0 !important;
-                    padding: 0 !important;
-                }
-                :where(#header.region .ft-quicktag-menu) {
-                    background: Canvas;
-                    color: CanvasText;
-                    border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
-                    box-shadow: 0 2px 8px rgba(0,0,0,.25);
-                }
-            `;
     }
   }
 
@@ -614,7 +577,7 @@
       return formData;
     }
 
-    // [FORK: series] create a bookmark for a series with given data
+    // Create a bookmark for a series with given data
     createSeriesBookmark(seriesId, authenticityToken, bookmarkData) {
       const url = `${this.baseApiUrl}/series/${seriesId}/bookmarks`;
       const headers = this.getRequestHeaders();
@@ -657,7 +620,7 @@
     }
   }
 
-  // ==== [FORK] CHAPTER TRACKING ====
+  // Utility functions for chapter detection
   function isChapterPage() {
     // Match both /works/123/chapters/456 and direct /chapters/456 URLs
     return /\/chapters\/\d+/.test(window.location.pathname);
@@ -676,7 +639,6 @@
 
     return match ? parseInt(match[1], 10) : null;
   }
-  // ==== END: CHAPTER TRACKING ====
 
   // Class for managing custom user notes
   class CustomUserNotesManager {
@@ -739,199 +701,11 @@
       }
     }
 
-    // ==== [FORK] SKIN THEME SAMPLING ====
-    // Samples the active skin's real styling so injected note UI blends in
-
-    // Detached li.blurb for sampling skin CSS on pages with no real blurb; caller removes it
-    createTempBlurbElement() {
-      if (!document.body) return null;
-
-      const tempBlurb = document.createElement("li");
-      tempBlurb.className = "blurb work";
-      tempBlurb.style.cssText =
-        "position:absolute;left:-9999px;visibility:hidden;";
-      document.body.appendChild(tempBlurb);
-      return tempBlurb;
-    }
-
-    // Samples background/border-radius off a real .actions button (excludes #header)
-    getActionButtonStyle() {
-      const sample = document.querySelector(
-        ".actions a:not(#header *), .actions button:not(#header *)",
-      );
-      if (!sample) return null;
-
-      const computed = getComputedStyle(sample);
-      const backgroundColor =
-        computed.backgroundColor &&
-        computed.backgroundColor !== "rgba(0, 0, 0, 0)" &&
-        computed.backgroundColor !== "transparent"
-          ? computed.backgroundColor
-          : null;
-      const borderRadius = computed.borderRadius;
-
-      if (!backgroundColor && !borderRadius) return null;
-
-      return { backgroundColor, borderRadius };
-    }
-
-    // Samples real :hover background by reading stylesheet rules directly
-    getActionButtonHoverBackground() {
-      const hoverSubstrings = [
-        ".actions a:is(:hover",
-        ".actions button:is(:hover",
-        ".actions a:hover",
-        ".actions button:hover",
-        "button:is(:hover",
-        "button:hover",
-      ];
-
-      const resolveVars = (val) => {
-        if (!val) return val;
-        return val.replace(/var\(\s*(--[\w-]+)\s*\)/g, (match, prop) => {
-          const resolved = getComputedStyle(document.documentElement)
-            .getPropertyValue(prop)
-            .trim();
-          return resolved || match;
-        });
-      };
-
-      let hoverBackground = null;
-
-      for (const sheet of document.styleSheets) {
-        let rules;
-        try {
-          rules = sheet.cssRules;
-        } catch (e) {
-          continue;
-        }
-        if (!rules) continue;
-
-        for (const rule of rules) {
-          if (!rule.selectorText || !rule.style) continue;
-          if (/#header/.test(rule.selectorText)) continue;
-          if (!hoverSubstrings.some((p) => rule.selectorText.includes(p)))
-            continue;
-
-          const bg = rule.style.background || rule.style.backgroundColor;
-          const resolved = resolveVars(bg);
-          if (resolved && resolved !== "none" && resolved !== "transparent") {
-            hoverBackground = resolved;
-          }
-        }
-      }
-
-      return hoverBackground;
-    }
-
-    // Matches the note's buttons to the skin's real .actions background/radius/hover
-    getNoteButtonStyles(scopeSelector) {
-      const style = this.getActionButtonStyle();
-
-      const { backgroundColor, borderRadius } = style || {};
-      const decls = [
-        backgroundColor ? `background: ${backgroundColor};` : "",
-        borderRadius ? `border-radius: ${borderRadius};` : "",
-      ]
-        .filter(Boolean)
-        .join(" ");
-
-      const hoverBackground = this.getActionButtonHoverBackground();
-      const hoverDecls = hoverBackground
-        ? `background: ${hoverBackground};`
-        : "filter: brightness(1.1);";
-
-      return `
-                <style>
-                    ${scopeSelector} button {
-                        ${decls}
-                        margin-block: 0 !important;
-                    }
-                    ${scopeSelector} button:is(:hover, :focus) {
-                        ${hoverDecls}
-                    }
-                </style>
-            `;
-    }
-
-    // Samples border/radius/shadow/background off a real or fabricated blurb
-    readBlurbBorder(blurbElement) {
-      let element = blurbElement;
-      let isTemp = false;
-
-      if (!element) {
-        element = this.createTempBlurbElement();
-        if (!element) return null;
-        isTemp = true;
-      }
-
-      const glowingClasses = isTemp
-        ? []
-        : Array.from(element.classList).filter((cls) =>
-            cls.startsWith("glowing-border-"),
-          );
-      glowingClasses.forEach((cls) => element.classList.remove(cls));
-
-      const computed = getComputedStyle(element);
-      const borderWidth = computed.borderTopWidth || "1px";
-      const borderStyle = computed.borderTopStyle;
-      const borderColor = computed.borderTopColor;
-      const boxShadow =
-        computed.boxShadow && computed.boxShadow !== "none"
-          ? computed.boxShadow
-          : null;
-      const borderRadius = computed.borderTopLeftRadius;
-      const backgroundColor =
-        computed.backgroundColor &&
-        computed.backgroundColor !== "rgba(0, 0, 0, 0)" &&
-        computed.backgroundColor !== "transparent"
-          ? computed.backgroundColor
-          : null;
-      const padding = computed.padding;
-
-      glowingClasses.forEach((cls) => element.classList.add(cls));
-      if (isTemp) element.remove();
-
-      const hasRealBorder = borderStyle && borderStyle !== "none";
-      if (!hasRealBorder && !boxShadow) return null;
-
-      return {
-        borderWidth,
-        borderStyle: hasRealBorder ? borderStyle : "none",
-        borderColor,
-        borderRadius,
-        boxShadow,
-        backgroundColor,
-        padding,
-      };
-    }
-
-    // Border+background style matching the active skin's blurb
-    getBlurbBorderStyle(blurbElement) {
-      const fallback = "border: 1px solid currentColor; border-radius: 4px;";
-      const border = this.readBlurbBorder(blurbElement);
-      if (!border) return fallback;
-
-      return `border: ${border.borderWidth} ${border.borderStyle} ${border.borderColor}; border-radius: ${border.borderRadius};${border.boxShadow ? ` box-shadow: ${border.boxShadow};` : ""}${border.backgroundColor ? ` background: ${border.backgroundColor};` : ""}`;
-    }
-
-    // Same as getBlurbBorderStyle but for nested elements (no box-shadow)
-    getBlurbInnerBorderStyle(blurbElement) {
-      const fallback =
-        "border: 1px solid rgba(128,128,128,0.2); border-radius: 4px;";
-      const border = this.readBlurbBorder(blurbElement);
-      if (!border) return fallback;
-
-      return `border: ${border.borderWidth} ${border.borderStyle} ${border.borderColor}; border-radius: ${border.borderRadius};`;
-    }
-    // ==== END: SKIN THEME SAMPLING ====
-
     // Generate note block HTML
     generateNoteHtml(
       workId,
       isWorkPage = false,
       isNoteAggregatorModal = false,
-      blurbElement = null,
     ) {
       const note = this.getNote(workId);
       const noteText = note?.text || "";
@@ -940,8 +714,6 @@
         ? new Date(noteDate).toLocaleDateString()
         : "";
       const detailsOpen = settings.expandUserNoteDetails ? "open" : "";
-      const detailsBorderStyle = this.getBlurbBorderStyle(blurbElement);
-      const textareaBorderStyle = this.getBlurbInnerBorderStyle(blurbElement);
 
       // If note was deleted from note modal manager - leave empty space
       if (!noteText && isNoteAggregatorModal === true) return "";
@@ -965,9 +737,6 @@
         ficDetails = this.getFicDetailsHTML(workId, note);
       }
 
-      const noteButtonScope = `.user-note-preview[data-work-id="${workId}"]`;
-      const noteButtonStyles = this.getNoteButtonStyles(noteButtonScope);
-
       return `
                 <div class="user-note-preview" data-work-id="${workId}" style="order: 999; flex-basis: 100%;">
                     <style>
@@ -977,18 +746,17 @@
                             }
                         }
                     </style>
-                    ${noteButtonStyles}
                     <div style="display: flex; justify-content: center;">
                         <!-- Config edit form for works listing or fic page itself -->
                         <div style="width: ${isWorkPage ? "60%" : "100%"};">
-                            <details ${detailsOpen} style="margin: 18px 0 1px 0;; ${detailsBorderStyle} padding: 0; overflow: hidden;">
+                            <details ${detailsOpen} style="margin: 18px 0 1px 0;; border: 1px solid currentColor; border-radius: 4px; padding: 0;">
                                 <summary style="padding: 4px 6px; cursor: pointer; font-weight: bold; background: rgba(128,128,128,0.1); display: flex; justify-content: space-between; align-items: center;">
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <span>${isNoteAggregatorModal ? ficDetails.outerHTML : "📝 Your Note"}</span>
                                     </div>
                                     <div class="note-actions" style="display: flex; gap: 8px;">
-                                        <button class="edit-note-btn" title="Edit Note" style="cursor: pointer;">✏️</button>
-                                        <button class="delete-note-btn" title="Delete Note" style="cursor: pointer;">🗑️</button>
+                                        <button class="edit-note-btn" title="Edit Note" style="background: none; border: none; cursor: pointer;">✏️</button>
+                                        <button class="delete-note-btn" title="Delete Note" style="background: none; border: none; cursor: pointer;">🗑️</button>
                                     </div>
                                 </summary>
                                 <div class="note-body" style="padding: 12px; border-top: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05);">
@@ -998,7 +766,7 @@
                                     </div>
                                 </div>
                                 <div class="note-edit-form" style="display: none; padding: 12px; border-top: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05);">
-                                    <textarea class="note-textarea" style="box-sizing: border-box; width: 100%; min-height: 100px; margin-bottom: 8px; padding: 8px; ${textareaBorderStyle}">${escapeHTML(noteText)}</textarea>
+                                    <textarea class="note-textarea" style="box-sizing: border-box; width: 100%; min-height: 100px; margin-bottom: 8px; padding: 8px; border: 1px solid rgba(128,128,128,0.2); border-radius: 4px;">${escapeHTML(noteText)}</textarea>
                                     <div style="display: flex; gap: 8px; justify-content: flex-end;">
                                         <button class="save-note-btn" style="cursor: pointer;">💾 Save</button>
                                         <button class="cancel-edit-btn" style="cursor: pointer;">❌ Cancel</button>
@@ -1026,13 +794,7 @@
         if (!btn) return;
 
         if (btn.classList.contains("create-note-btn")) {
-          const blurbElement = isWorkPage
-            ? null
-            : noteBlock.closest("li.blurb, li.work");
-          noteBlock.innerHTML = this.generateEditFormHtml(
-            isWorkPage,
-            blurbElement,
-          );
+          noteBlock.innerHTML = this.generateEditFormHtml(isWorkPage);
         }
 
         if (btn.classList.contains("edit-note-btn")) {
@@ -1082,10 +844,7 @@
       });
     }
 
-    generateEditFormHtml(isWorkPage = false, blurbElement = null) {
-      const formBorderStyle = this.getBlurbBorderStyle(blurbElement);
-      const textareaBorderStyle = this.getBlurbInnerBorderStyle(blurbElement);
-      const noteButtonStyles = this.getNoteButtonStyles(".user-note-preview");
+    generateEditFormHtml(isWorkPage = false) {
       return `
                 <style>
                     @media screen and (max-width: 42em) {
@@ -1094,10 +853,9 @@
                         }
                     }
                 </style>
-                ${noteButtonStyles}
                 <div style="display: flex; justify-content: center;">
-                    <div style="margin: 18px 0 1px 0; padding: 12px; background: rgba(128,128,128,0.05); box-sizing: border-box !important; width: ${isWorkPage ? "60%" : "100%"}; ${formBorderStyle}">
-                        <textarea class="note-textarea" placeholder="Write your note here..." style="box-sizing: border-box; width: 100%; min-height: 100px; margin-bottom: 8px; padding: 8px; ${textareaBorderStyle}"></textarea>
+                    <div style="margin: 18px 0 1px 0; border: 1px solid currentColor; border-radius: 4px; padding: 12px; background: rgba(128,128,128,0.05); box-sizing: border-box !important; width: ${isWorkPage ? "60%" : "100%"};">
+                        <textarea class="note-textarea" placeholder="Write your note here..." style="box-sizing: border-box; width: 100%; min-height: 100px; margin-bottom: 8px; padding: 8px; border: 1px solid rgba(128,128,128,0.2); border-radius: 4px;"></textarea>
                         <div style="display: flex; gap: 8px; justify-content: flex-end;">
                             <button class="save-note-btn" style="cursor: pointer;">💾 Save</button>
                             <button class="cancel-edit-btn" style="cursor: pointer;">❌ Cancel</button>
@@ -1113,18 +871,13 @@
       isWorkPage = false,
       isNoteAggregatorModal = false,
     ) {
-      const blurbElement = isWorkPage
-        ? null
-        : noteBlock.closest("li.blurb, li.work");
       noteBlock.outerHTML = this.generateNoteHtml(
         workId,
         isWorkPage,
         isNoteAggregatorModal,
-        blurbElement,
       );
     }
 
-    // [FORK: notes] narrowed to {title, author, fandom-as-text}
     getFicDetails(workId, isWorkPage = false) {
       if (isWorkPage) {
         const title = document
@@ -1152,7 +905,9 @@
       }
     }
 
-    // [FORK: bookmark-prefill] original's full scrape, merged into one method
+    // Richer fic-detail scrape used only for bookmark note prefill templating.
+    // Kept separate from getFicDetails() because that method's {title, author, fandom}
+    // shape (fandom as plain text) is relied on by saveNote()/getFicDetailsHTML() for notes.
     getFicDetailsForBookmarkNote(workId, isWorkPage = false) {
       if (isWorkPage) {
         const title = document
@@ -1251,7 +1006,6 @@
       }
     }
 
-    // [FORK: chapter-tracking]
     prependChapterMarker(existingText, chapterNum) {
       // Remove any existing "Last Read: Ch. X" marker (including trailing newlines)
       const cleanedText = existingText
@@ -1411,7 +1165,6 @@
   class RemoteStorageSyncManager {
     constructor() {
       this.storageManager = new StorageManager();
-      // [FORK: config-sync] storage keys for custom status + UI config
       this.STATUS_CONFIG_KEY = "FT_statusesConfig";
       this.LAST_SYNCED_STATUS_CONFIG_KEY = "FT_lastSyncedStatusesConfig";
       this.UI_CONFIG_KEY = "FT_uiConfig";
@@ -1443,7 +1196,6 @@
         );
     }
 
-    // [FORK: config-sync] dynamic key list for custom statuses + kudos
     rebuildSyncedKeys() {
       // Sync all configured status storage keys dynamically
       this.syncedKeys = settings.statuses.map((s) => s.storageKey);
@@ -1453,7 +1205,6 @@
       this.syncedKeys.push(settings.kudosStorageKey);
     }
 
-    // [FORK: config-sync] applies a status config pulled from another device
     applySyncedStatusesConfig(configRaw) {
       try {
         if (!configRaw) return false;
@@ -1506,7 +1257,6 @@
       }
     }
 
-    // [FORK: config-sync] queues status config for cross-device sync
     syncStatusesConfigIfNeeded() {
       const localConfig =
         localStorage.getItem(this.STATUS_CONFIG_KEY) ||
@@ -1521,14 +1271,12 @@
       }
     }
 
-    // [FORK: config-sync] UI preferences payload (e.g. dropdown label)
     buildUiConfigPayload() {
       return JSON.stringify({
         changeStatusLabel: settings.changeStatusLabel || "✿ Change Status ▼",
       });
     }
 
-    // [FORK: config-sync] applies a UI config pulled from another device
     applyUiConfig(configRaw) {
       try {
         if (!configRaw) return;
@@ -1550,7 +1298,6 @@
       }
     }
 
-    // [FORK: config-sync] queues UI config for cross-device sync
     syncUiConfigIfNeeded() {
       const localConfig = this.buildUiConfigPayload();
       this.storageManager.setItem(this.UI_CONFIG_KEY, localConfig);
@@ -1576,7 +1323,6 @@
         );
       }
 
-      // [FORK: config-sync] init storage for status + UI config
       if (!this.storageManager.getItem(this.STATUS_CONFIG_KEY)) {
         this.storageManager.setItem(
           this.STATUS_CONFIG_KEY,
@@ -1835,7 +1581,11 @@
       DEBUG && console.log("[FicTracker] Gone offline, pausing sync");
     }
 
-    // [FIX: sync-queue] unique id per entry, so only sent entries get cleared (see removeSyncedChanges)
+    // Add a change to the pending queue
+    // Generate a unique id for a pending queue entry, used to safely remove
+    // only the entries that were actually sent in a given sync request
+    // (see removeSyncedChanges) instead of blindly clearing the whole queue,
+    // which would drop anything queued while that request was in flight.
     generatePendingEntryId() {
       RemoteStorageSyncManager._pendingEntrySeq =
         (RemoteStorageSyncManager._pendingEntrySeq || 0) + 1;
@@ -1903,7 +1653,6 @@
         const existing = operations[i];
 
         if (existing.key === key) {
-          // [FIX: sync-queue] dedupe stale "set" entries for the same key (new op type)
           if (action === "set" && existing.action === "set") {
             // A newer 'set' always supersedes an older 'set' for the same key,
             // regardless of value — remove the stale one so only the latest survives.
@@ -1981,7 +1730,11 @@
         );
     }
 
-    // [FIX: sync-queue] removes only entries actually sent, instead of clearing everything
+    // Remove only the specific operations/notes that were included in a sync request
+    // that just succeeded, identified by their _id. Anything queued after the snapshot
+    // was taken (e.g. a kudos click or note edit that landed while the request was in
+    // flight) is not in sentChanges and therefore survives, instead of being silently
+    // dropped by a blind clearPendingChanges() call.
     removeSyncedChanges(sentChanges) {
       const sentOperationIds = new Set(
         (sentChanges.operations || []).map((op) => op._id),
@@ -2018,7 +1771,6 @@
         return;
       }
 
-      // [FORK: config-sync] queue status + UI config changes alongside regular sync
       this.syncStatusesConfigIfNeeded();
       this.syncUiConfigIfNeeded();
 
@@ -2027,8 +1779,6 @@
       this.updateSyncWidget("syncing");
 
       const pendingChanges = this.getPendingChanges();
-      // [FORK: config-sync] confirms server actually saved a status-config update
-      // before treating it as synced, so edits aren't silently lost
       const statusConfigSetOps = (pendingChanges.operations || []).filter(
         (op) => op && op.action === "set" && op.key === this.STATUS_CONFIG_KEY,
       );
@@ -2202,7 +1952,6 @@
     updateLocalStorage(serverData) {
       const safeServerData = serverData || {};
 
-      // ==== [FORK] CUSTOM STATUS + UI CONFIG SYNC ====
       // Apply UI config (changeStatusLabel, etc.)
       if (
         Object.prototype.hasOwnProperty.call(safeServerData, this.UI_CONFIG_KEY)
@@ -2291,7 +2040,6 @@
             );
         }
       }
-      // ==== END: CUSTOM STATUS + UI CONFIG SYNC ====
 
       // Iterate through the list of keys that are eligible for syncing
       for (const key of this.syncedKeys) {
@@ -2520,7 +2268,7 @@
       return bookmarkData;
     }
 
-    // [FORK: series] gather series bookmark data from a series page document
+    // Gather series bookmark data from a series page document (or current document)
     getSeriesBookmarkData(seriesId) {
       const form = this.doc.querySelector("div#bookmark_form_placement form");
       const action = form?.getAttribute("action") || "";
@@ -2573,7 +2321,7 @@
         document.querySelector("li.mark").style.display = "none";
       }
 
-      // [FORK: subscribe-btn] hides default Subscribe button on work pages
+      // Hide the default "subscribe" button if specified in settings
       if (settings.hideDefaultSubscribeBtn) {
         const subscribeBtn = document.querySelector("li.subscribe");
         if (subscribeBtn) subscribeBtn.style.display = "none";
@@ -2597,8 +2345,6 @@
           this.userNotesManager.generateNoteHtml(
             this.bookmarkData.workId,
             true,
-            false,
-            null,
           ),
         );
         this.userNotesManager.setupNoteHandlers(containerForNotes, true);
@@ -2625,7 +2371,7 @@
         },
       );
 
-      // [FORK: chapter-tracking] "Mark Chapter" button
+      // Add "Mark Chapter" button if enabled and on a chapter page
       if (settings.enableMarkAsReadButton && isChapterPage()) {
         const markChapterButtonHtml =
           '<li class="mark-as-read" id="mark-chapter-read"><a href="#">📖 Mark Chapter</a></li>';
@@ -2642,7 +2388,7 @@
 
       this.setupClickListeners();
 
-      // [FORK: kudos] initialize kudos hiding/tracking
+      // Initialize kudos tracking
       const kudosManager = new KudosManager(
         this.storageManager,
         this.remoteSyncManager,
@@ -2681,7 +2427,7 @@
         },
       );
 
-      // [FORK: chapter-tracking] listener for "Mark Chapter" button
+      // Setup listener for "Mark Chapter" button
       if (settings.enableMarkAsReadButton && isChapterPage()) {
         document.querySelectorAll("#mark-chapter-read").forEach((button) => {
           button.addEventListener("click", (event) => {
@@ -2760,7 +2506,6 @@
       }
     }
 
-    // [FORK: chapter-tracking] "Mark Chapter" button handler
     handleMarkChapterAsRead() {
       const chapterNum = getCurrentChapterNumber();
       if (!chapterNum) {
@@ -2814,7 +2559,7 @@
             // Create note display
             ficWrapperContainer.insertAdjacentHTML(
               "afterend",
-              this.userNotesManager.generateNoteHtml(workId, true, false, null),
+              this.userNotesManager.generateNoteHtml(workId, true),
             );
 
             // Only setup handlers if this is the first note (handlers not already set up)
@@ -2837,7 +2582,6 @@
     }
   }
 
-  // ==== [FORK] KUDOS HIDING & SYNC ====
   // Class for managing kudos button hiding and sync
   class KudosManager {
     constructor(storageManager, remoteSyncManager = null) {
@@ -2862,62 +2606,7 @@
       const kudosGiven = this.storageManager.getIdsFromCategory(
         this.storageKey,
       );
-      if (kudosGiven.includes(workId)) return true;
-
-      // Cross-compat fallback: recognize history from AO3: No Re-Kudos
-      try {
-        const noRekudos = JSON.parse(
-          localStorage.getItem("ao3_no_rekudos_config") || "{}",
-        );
-        return Boolean(noRekudos[workId]);
-      } catch (e) {
-        return false;
-      }
-    }
-
-    // One-time absorb of AO3: No Re-Kudos history into FT_kudosGiven, so it
-    // becomes part of FicTracker's synced data instead of only being
-    // recognized locally via the fallback above.
-    // [FIX: kudos] only marks absorption done once any absorbed IDs were actually
-    // queued for sync (or there was nothing to absorb) — previously the flag was set
-    // unconditionally, so absorbing while sync was disabled meant those IDs were never
-    // queued, and a later full sync would silently overwrite local FT_kudosGiven with
-    // the server's copy, permanently losing them.
-    absorbNoRekudosHistory() {
-      const ABSORB_FLAG = "FT_noReKudos";
-      if (localStorage.getItem(ABSORB_FLAG)) return;
-
-      let queuedForSync = true;
-
-      try {
-        const noRekudos = JSON.parse(
-          localStorage.getItem("ao3_no_rekudos_config") || "{}",
-        );
-        const workIds = Object.keys(noRekudos).filter((id) => noRekudos[id]);
-        workIds.forEach((id) => {
-          this.storageManager.addIdToCategory(this.storageKey, id);
-          if (this.remoteSyncManager) {
-            this.remoteSyncManager.addPendingStatusChange(
-              "add",
-              this.storageKey,
-              id,
-            );
-          } else {
-            queuedForSync = false;
-          }
-        });
-        DEBUG &&
-          console.info(
-            `[FicTracker] Absorbed ${workIds.length} kudos IDs from No Re-Kudos`,
-          );
-      } catch (e) {
-        DEBUG &&
-          console.warn("[FicTracker] Failed to absorb No Re-Kudos history:", e);
-      } finally {
-        if (queuedForSync) {
-          localStorage.setItem(ABSORB_FLAG, "1");
-        }
-      }
+      return kudosGiven.includes(workId);
     }
 
     // Record that kudos was given and hide the button
@@ -2957,8 +2646,6 @@
 
     // Initialize kudos tracking on the current page
     init() {
-      this.absorbNoRekudosHistory();
-
       const kudosButton = this.getKudosButton();
       const workId = this.getWorkIdFromForm();
 
@@ -3003,7 +2690,6 @@
       }
     }
   }
-  // ==== END: KUDOS HIDING & SYNC ====
 
   // Class for handling features on works list page
   class WorksListHandler {
@@ -3031,7 +2717,7 @@
       // Listen for clicks on quick tag buttons
       this.setupQuickTagListener();
 
-      // [FORK: series] inject Change Status buttons on series pages
+      // Inject status buttons on series pages
       this.addSeriesStatusButtons();
 
       // Display on page sorting controls if enabled
@@ -3076,7 +2762,7 @@
           return;
         }
 
-        // [FORK: series] series bookmark blurbs store statuses under "series_ID"
+        // Series bookmark blurbs store statuses under "series_ID"
         const seriesMatch = work.className.match(/\bseries-(\d+)\b/);
         const entityId = seriesMatch ? `series_${seriesMatch[1]}` : workId;
 
@@ -3186,32 +2872,11 @@
       }
     }
 
-    // [FORK: dropdown-style] reads skin's real <dd> spacing so the Change Status toggle matches it
-    getStatsItemSpacing(statsList) {
-      const items = statsList.querySelectorAll("dd");
-      if (items.length < 2) return "0";
-
-      const computed = getComputedStyle(items[items.length - 1]);
-      const marginLeft = parseFloat(computed.marginLeft) || 0;
-      const paddingLeft = parseFloat(computed.paddingLeft) || 0;
-      const spacing = Math.max(marginLeft, paddingLeft);
-
-      return spacing > 0 ? `${spacing}px` : "0";
-    }
-
-    // [FORK: dropdown-style] reads skin's real <dd> text color so the toggle matches it
-    getStatsItemColor(statsList) {
-      const item = statsList.querySelector("dd");
-      if (!item) return null;
-
-      return getComputedStyle(item).color || null;
-    }
-
     // Add quick tag toggler dropdown to the work
     addQuickTagDropdown(work) {
       const workId = this.getWorkId(work);
 
-      // [FORK: series] series bookmark blurbs store statuses under "series_ID"
+      // Series bookmark blurbs store statuses under "series_ID" — use that as the lookup key
       const seriesMatch = work.className.match(/\bseries-(\d+)\b/);
       const entityId = seriesMatch ? `series_${seriesMatch[1]}` : workId;
 
@@ -3233,22 +2898,14 @@
       // No status is enabled, dont render Change Status menu
       if (dropdownItems.length === 0) return;
 
-      // [FORK: dropdown-style] skin-aware spacing/color + custom changeStatusLabel
-      const statsList = work.querySelector("dl.stats");
-      const itemSpacing = this.getStatsItemSpacing(statsList);
-      const itemColor = this.getStatsItemColor(statsList);
-      const toggleColorStyle = itemColor
-        ? `color: ${itemColor} !important;`
-        : "";
-
-      statsList.insertAdjacentHTML(
+      work.querySelector("dl.stats").insertAdjacentHTML(
         "beforeend",
         `
-                <header id="header" class="region" style="display: inline-flex !important; top: -1px; align-items: center !important; flex-wrap: nowrap !important; width: auto !important; max-width: none !important; position: relative !important; margin: 0 0 0 ${itemSpacing} !important; padding: 0 !important; background: transparent !important; border: 0 !important; box-shadow: none !important; color: inherit !important; font-size: 1em !important; cursor: pointer; opacity: 1; word-spacing: normal !important;">
+                <header id="header" class="region" style="display: inline-flex !important; top: -1px; align-items: center !important; flex-wrap: nowrap !important; width: auto !important; max-width: none !important; position: relative !important; margin: 0 !important; padding: 0 !important; background: transparent !important; border: 0 !important; box-shadow: none !important; color: inherit !important; font-size: 1em !important; cursor: pointer; opacity: 1; word-spacing: normal !important;">
                 <ul class="navigation actions" style="margin: 0 !important; padding: 0 !important; display: flex !important; align-items: center !important; list-style: none !important;">
                     <li class="dropdown" aria-haspopup="true" style="position: relative !important; margin: 0 !important; padding: 0 !important;">
-                        <a href="#" class="dropdown-toggle ft-quicktag-toggle" data-toggle="dropdown" data-target="#" style="${toggleColorStyle}">${settings.changeStatusLabel || "✿ Change Status ▼"}</a>
-                        <ul class="menu dropdown-menu ft-quicktag-menu" style="width: auto !important; position: absolute !important; z-index: 9999 !important;">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown" data-target="#">${settings.changeStatusLabel || "✿ Change Status ▼"}</a>
+                        <ul class="menu dropdown-menu" style="width: auto !important; position: absolute !important; z-index: 9999 !important;">
                             ${dropdownItems.join("")}
                         </ul>
                     </li>
@@ -3264,7 +2921,6 @@
       // Event delegation for optimization
       worksContainer.addEventListener("click", async (event) => {
         if (event.target.matches("a.work_quicktag_btn")) {
-          // [FIX: dropdown-click] missing preventDefault() let clicks scroll page to top
           event.preventDefault();
           const targetStatusTag = event.target.dataset.statusTag;
           const workId = event.target.dataset.workId;
@@ -3273,11 +2929,10 @@
 
           event.target.innerHTML = settings.loadingLabel;
 
-          // [FORK: series] detect if button is inside a series bookmark blurb
+          // Detect if this button is inside a series bookmark blurb (class like "series-3279598")
           const blurb = event.target.closest("li.bookmark.blurb");
           const seriesMatch = blurb?.className.match(/\bseries-(\d+)\b/);
 
-          // [FORK: series] (else branch below is the original work-bookmark path)
           if (seriesMatch) {
             // Series bookmark on bookmark listing page — use series endpoint
             const seriesId = seriesMatch[1];
@@ -3479,7 +3134,6 @@
             }
           }
         } else if (event.target.matches("a.series_quicktag_btn")) {
-          // [FORK: series] Change Status handling on series-show pages
           event.preventDefault();
           const seriesId = event.target.dataset.seriesId;
           const entityId = event.target.dataset.entityId;
@@ -3659,7 +3313,7 @@
       });
     }
 
-    // [FORK: series] inject Change Status dropdown into the series page nav
+    // Inject a Change Status dropdown into the series page nav (series-show pages only)
     addSeriesStatusButtons() {
       const seriesMain = document.querySelector("div#main.series-show.region");
       if (!seriesMain) return;
@@ -3720,7 +3374,7 @@
         });
     }
 
-    // [FORK: series] get series bookmark data from the current page document
+    // Get series bookmark data from the current page document
     getSeriesBookmarkDataFromPage(seriesId) {
       const tagManager = new BookmarkTagManager(document);
       return tagManager.getSeriesBookmarkData(seriesId);
@@ -3736,7 +3390,7 @@
       //beforeend | afterend
       container.insertAdjacentHTML(
         "beforebegin",
-        this.userNotesManager.generateNoteHtml(workId, false, false, work),
+        this.userNotesManager.generateNoteHtml(workId),
       );
     }
 
@@ -3781,7 +3435,6 @@
       }
     }
 
-    // [FORK: series] fetch series bookmark data from the server
     async getRemoteSeriesBookmarkData(seriesId) {
       DEBUG &&
         console.log(
@@ -4112,7 +3765,6 @@
                             </li>
                         </ul>
                     </details>
-                    <!-- [FORK: dropdown-label] -->
                     <ul>
                         <li>
                             <label for="change_status_label">"Change Status" dropdown label:</label>
@@ -4154,7 +3806,6 @@
                                 Display on-page sort conrols
                             </label>
                         </li>
-                        <!-- [FORK: chapter-tracking] -->
                         <li>
                             <input type="checkbox" id="toggle_enableMarkAsReadButton" v-model="ficTrackerSettings.enableMarkAsReadButton">
                             <label for="toggle_enableMarkAsReadButton"
@@ -4195,7 +3846,6 @@
                             <input type="checkbox" id="hide_default_toread" v-model="ficTrackerSettings.hideDefaultToreadBtn">
                             <label for="hide_default_toread" title="Hides AO3's default 'Mark For Later' button to reduce clutter">Hide default Mark For Later button</label>
                         </li>
-                        <!-- [FORK: subscribe-btn] -->
                         <li>
                             <input type="checkbox" id="hide_default_subscribe" v-model="ficTrackerSettings.hideDefaultSubscribeBtn">
                             <label for="hide_default_subscribe" title="Hides AO3's default 'Subscribe' button to reduce clutter">Hide default Subscribe button</label>
@@ -4576,7 +4226,6 @@
           this.ficTrackerSettings.syncDBInitialized = false;
           this.ficTrackerSettings.syncEnabled = false;
           localStorage.removeItem("FT_lastSync");
-          // [FIX: sheet-init] also clear these so reconnecting doesn't reuse stale state
           localStorage.removeItem("FT_pendingChanges");
           localStorage.removeItem("FT_lastSyncedStatusesConfig");
           this.saveSettings();
@@ -4597,7 +4246,7 @@
           this.sheetConnectionStatus = {};
 
           try {
-            // [FIX: sheet-init] save in-panel edits before syncing, instead of syncing stale data
+            // Persist any in-panel status edits before syncing
             this.saveSettings();
 
             // Attempt to perform the sync and update the last successful sync timestamp
@@ -4740,8 +4389,6 @@
 
         // Initializes Google Sheets storage by uploading current local FicTracker data.
         // Marks DB as initialized and updates sync timestamp on success.
-        // [FIX: sheet-init] non-destructive init — probes for existing remote data first,
-        // guards against overwriting it from an empty browser, and syncs config keys too
         initializeSheetStorage() {
           const url = this.ficTrackerSettings.sheetUrl;
           // Validate that the Google Sheets URL is set
@@ -5343,10 +4990,8 @@
       // this.settings.statuses = this.settings.statuses.filter(status => status.enabled !== false);
 
       this.initStyles();
-      // [FIX: dropdown-retry] original gave up if user menu wasn't in DOM yet; this retries
       this.setupReliableDropdownInjection();
       this.setupURLHandlers();
-      // [FORK: kudos] keeps kudos state in sync across open tabs
       this.setupCrossTabKudosSync();
 
       // Only initialize storages on global scope if My Notes manager enabled
@@ -5437,7 +5082,7 @@
           !storedSettings.version ||
           storedSettings.version !== currentVersion
         ) {
-          // [FORK: statuses] adds new default statuses (e.g. Subscribed) on version bump
+          // Merge statuses intelligently - add new default statuses that don't exist
           if (storedSettings.statuses && settings.statuses) {
             const existingStorageKeys = new Set(
               storedSettings.statuses.map((s) => s.storageKey),
@@ -5512,11 +5157,9 @@
     initStyles() {
       // Dynamic styles generation for each status, this will allow adding custom statuses in the future updates
       const statusStyles = StyleManager.generateStatusStyles();
-      const quickTagToggleStyles = StyleManager.generateQuickTagToggleStyles();
 
       StyleManager.addCustomStyles(`
                 ${statusStyles}
-                ${quickTagToggleStyles}
 
                 li.FT_collapsable .landmark,
                 li.FT_collapsable .tags,
@@ -5535,7 +5178,7 @@
                     display: block;
                 }
 
-                /* [FIX: dropdown-style] was clipping the Change Status dropdown menu */
+                /* ensure dropdown menu is not clipped */
                 .bookmarks-index .bookmark.index {
                     overflow: visible !important;
                 }
@@ -5688,7 +5331,7 @@
           /\/works\?commit=Sort/,
           /\/works\?work_search/,
           /\/tags\/.*\/works/,
-          /\/users\/[^/]+(\/dashboard)?(\?.*)?$/, // [FORK: url-routes] dashboard page
+          /\/users\/[^/]+(\/dashboard)?(\?.*)?$/,
           /\/users\/.*\/readings/,
         ],
         () => {
