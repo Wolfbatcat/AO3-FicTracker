@@ -1,14 +1,18 @@
 # AO3 FicTracker - BlackBatCat's Version
 
+![Coded with GitHub Copilot](https://vibecoded.fyi/badges/flat/agents/github-copilot.svg)
+
 This is a fork of [infiniMotis's AO3 FicTracker](https://greasyfork.org/en/scripts/513435-ao3-fictracker) with my personalized modifications and a few new features.
 
 ---
 
-## ⚙️ Installation & Usage
+## 📋 How to Use
 
-Set up and usage instructions are the same as the original FicTracker. Setup steps are on the [FicTracker page](https://greasyfork.org/en/scripts/513435-ao3-fictracker).
+Setup steps and usage instructions are on the [FicTracker page](https://greasyfork.org/en/scripts/513435-ao3-fictracker).
 
-This fork maintains compatibility with the original's Cloud Storage integration, and I highly recommend it: it syncs statuses, notes, and settings (including the fork-specific ones below) across devices, and fork features like kudos-button hiding work best with it. 
+All settings can be found on your Preferences page at `User -> My Preferences`.
+
+I highly recommend using FicTracker's Cloud Storage integration. It syncs statuses, notes, and settings across devices, and fork features like kudos-button hiding work best with it. 
 
 > **🚨 Important:** Update statuses using FicTracker controls only (the **Change Status** menu and work-page buttons). Changes made through AO3's **Edit Bookmark** form aren't tracked by FicTracker storage, and status highlighting / collapse-hide behavior depends on it.
 
@@ -16,9 +20,15 @@ This fork maintains compatibility with the original's Cloud Storage integration,
 
 ## 🔄 Changes from Original
 
+### ⚙️ Changed Defaults
+- **My Notes Button** – Off by default; re-enable in Preferences.
+- **On-Page Sorting** – Off by default; re-enable in Preferences.
+- **Hide Default Subscribe Button** – New setting, on by default. Hides the subscribe button on work pages only. Uncheck to get the button back.
+
+
 ### 📖 Chapter Tracking Feature
 New feature to help track reading progress in multi-chapter works:
-- **"Mark Current Chapter" button** appears on chapter pages
+- **"Mark Chapter" button** appears on chapter pages
 - Automatically prepends `Last Read: Ch. X` to your custom note for that fic
 - Updates the chapter number each time you click it
 
@@ -52,11 +62,6 @@ Status categories have been renamed and reordered to match my workflow:
 
 ### 🔄 Cloud Sync Enhancements
 - Status configuration (`FT_statusesConfig`) now syncs too — custom tags and visual settings (highlight color, border size, border opacity) carry across devices.
-
-### ⚙️ Changed Defaults
-- **My Notes Button** – Off by default; re-enable in Preferences.
-- **On-Page Sorting** – Off by default; re-enable in Preferences.
-- **Hide Default Subscribe Button** – New setting, on by default. Hides the subscribe button on work pages only.
 
 ---
 

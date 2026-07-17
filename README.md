@@ -30,7 +30,7 @@ Status categories have been renamed and reordered to match my workflow:
 
 ### 📖 Chapter Tracking Feature
 New feature to help track reading progress in multi-chapter works:
-- **"Mark Current Chapter" button** appears on chapter pages
+- **"Mark Chapter" button** appears on chapter pages
 - Automatically prepends `Last Read: Ch. X` to your custom note for that fic
 - Updates the chapter number each time you click it
 
